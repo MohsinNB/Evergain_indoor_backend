@@ -24,4 +24,14 @@ const router = express.Router();
 import groundRoutes from "../modules/ground/ground.route";
 router.use("/", groundRoutes);
 
+// ── Admin Management & Auth ───────────────────────────────────────────────
+import adminRoutes from "../modules/admin/admin.route";
+import adminAuthRoutes from "../modules/auth/auth.route";
+router.use("/", adminRoutes);
+router.use("/", adminAuthRoutes);
+
+// ── Customer Auth ─────────────────────────────────────────────────────────
+import customerAuthRoutes from "../modules/customerAuth/customerAuth.route";
+router.use("/", customerAuthRoutes);
+
 export default router;
