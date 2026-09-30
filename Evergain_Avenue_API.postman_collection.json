@@ -1,0 +1,263 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+    "name": "Evergain Avenue — Complete API",
+    "description": "Postman collection covering Admin Auth, Admin Management, Ground Settings, Slots, and Customer Auth.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "groundId",
+      "value": "REPLACE_WITH_GROUND_ID",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "customerToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Admin & Auth",
+      "item": [
+        {
+          "name": "1.1 Seed Initial Super Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Super Admin\",\n  \"phone\": \"01700000000\",\n  \"password\": \"admin123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admins/seed",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admins", "seed"]
+            },
+            "description": "Seed the first super_admin user. Works ONLY if zero admins exist in DB."
+          }
+        },
+        {
+          "name": "1.2 Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"01700000000\",\n  \"password\": \"admin123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/admin/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "admin", "login"]
+            },
+            "description": "Logs in admin and sets httpOnly cookie `adminToken`."
+          }
+        },
+        {
+          "name": "1.3 Get Current Admin (Me)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/admin/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "admin", "me"]
+            },
+            "description": "Returns current logged-in admin details."
+          }
+        },
+        {
+          "name": "1.4 Admin Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/admin/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "admin", "logout"]
+            }
+          }
+        },
+        {
+          "name": "1.5 Create New Admin / Staff (Super Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Staff Member\",\n  \"phone\": \"01711111111\",\n  \"password\": \"staff123456\",\n  \"role\": \"staff\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admins",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admins"]
+            }
+          }
+        },
+        {
+          "name": "1.6 Get All Admins (Super Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admins",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admins"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Ground & Slots",
+      "item": [
+        {
+          "name": "2.1 GET Slots (Public)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/slots?date=2026-10-01",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "slots"],
+              "query": [
+                { "key": "date", "value": "2026-10-01" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "2.2 POST Create Ground (Super Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Evergain Avenue Ground 1\",\n  \"location\": \"Bashundhara R/A, Dhaka\",\n  \"openingTime\": \"08:00\",\n  \"closingTime\": \"23:00\",\n  \"slotDurationMinutes\": 60,\n  \"pricePerSlot\": 800,\n  \"isActive\": true,\n  \"closures\": []\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ground",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ground"]
+            }
+          }
+        },
+        {
+          "name": "2.3 GET Ground Settings (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ground/settings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ground", "settings"]
+            }
+          }
+        },
+        {
+          "name": "2.4 PATCH Update Ground Settings (Super Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pricePerSlot\": 850,\n  \"addClosures\": [\n    {\n      \"date\": \"2026-10-10\",\n      \"reason\": \"Turf Maintenance\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ground/settings/{{groundId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ground", "settings", "{{groundId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Customer Auth",
+      "item": [
+        {
+          "name": "3.1 Customer Signup",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"phone\": \"01812345678\",\n  \"password\": \"user123456\",\n  \"email\": \"john@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/customer/signup",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "customer", "signup"]
+            }
+          }
+        },
+        {
+          "name": "3.2 Customer Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"01812345678\",\n  \"password\": \"user123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/customer/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "customer", "login"]
+            }
+          }
+        },
+        {
+          "name": "3.3 Customer Profile (Me)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/customer/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "customer", "me"]
+            }
+          }
+        },
+        {
+          "name": "3.4 Customer Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/customer/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "customer", "logout"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
