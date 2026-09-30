@@ -1,0 +1,119 @@
+{
+  "info": {
+    "_postman_id": "e8d1a2b3-4c5d-6e7f-8a9b-0c1d2e3f4a5b",
+    "name": "Evergain Avenue — Ground & Slot Module",
+    "description": "Postman collection for testing Ground Settings and Slot Availability endpoints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "groundId",
+      "value": "REPLACE_WITH_GROUND_ID",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        },
+        "description": "Check API health and MongoDB connection status."
+      },
+      "response": []
+    },
+    {
+      "name": "1. GET Slots (Public)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/slots?date=2026-09-28",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "slots"],
+          "query": [
+            {
+              "key": "date",
+              "value": "2026-09-28",
+              "description": "Date in YYYY-MM-DD format"
+            }
+          ]
+        },
+        "description": "Public endpoint: Get generated time slots, availability, and prices (including 48h discount if applicable)."
+      },
+      "response": []
+    },
+    {
+      "name": "2. POST Create Ground (Super Admin)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Evergain Avenue Ground 1\",\n  \"location\": \"Bashundhara R/A, Dhaka\",\n  \"openingTime\": \"08:00\",\n  \"closingTime\": \"23:00\",\n  \"slotDurationMinutes\": 60,\n  \"pricePerSlot\": 800,\n  \"isActive\": true,\n  \"closures\": []\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/ground",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "ground"]
+        },
+        "description": "Creates initial Ground record. Note: Requires admin cookie authentication once Auth module is active."
+      },
+      "response": []
+    },
+    {
+      "name": "3. GET Ground Settings (Admin)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/ground/settings",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "ground", "settings"]
+        },
+        "description": "Get ground settings document. Requires admin authentication."
+      },
+      "response": []
+    },
+    {
+      "name": "4. PATCH Update Ground Settings (Super Admin)",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pricePerSlot\": 850,\n  \"addClosures\": [\n    {\n      \"date\": \"2026-10-01\",\n      \"reason\": \"Holiday / Turf Maintenance\"\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/ground/settings/{{groundId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "ground", "settings", "{{groundId}}"]
+        },
+        "description": "Update price, times, active status, or add/remove closures."
+      },
+      "response": []
+    }
+  ]
+}
