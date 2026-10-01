@@ -46,10 +46,6 @@ const customerSchema = new Schema<ICustomer>(
   },
 );
 
-// Indexes
-customerSchema.index({ phone: 1 }, { unique: true });
-customerSchema.index({ email: 1 }, { unique: true, sparse: true });
-
 // Hash password before save if modified
 customerSchema.pre("save", async function () {
   if (!this.isModified("passwordHash") || !this.passwordHash) return;

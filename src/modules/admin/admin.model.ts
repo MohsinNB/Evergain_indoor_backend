@@ -46,9 +46,6 @@ const adminUserSchema = new Schema<IAdminUser>(
   },
 );
 
-adminUserSchema.index({ phone: 1 }, { unique: true });
-adminUserSchema.index({ email: 1 }, { unique: true, sparse: true });
-
 // Hash password before save
 adminUserSchema.pre("save", async function () {
   if (!this.isModified("passwordHash")) return;
