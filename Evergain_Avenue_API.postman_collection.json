@@ -1,8 +1,8 @@
 {
   "info": {
-    "_postman_id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
-    "name": "Evergain Avenue — Complete API",
-    "description": "Postman collection covering Admin Auth, Admin Management, Ground Settings, Slots, and Customer Auth.",
+    "_postman_id": "e9a8b7c6-d5e4-3f2a-1b0c-9d8e7f6a5b4c",
+    "name": "Evergain Avenue — Complete System API (Admin, Ground, Customer)",
+    "description": "Full Postman collection for Evergain Avenue Indoor Football System covering Admin Auth & User Management, Ground & Slot Settings, and Customer Auth, Profile & Coupons.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -17,19 +17,32 @@
       "type": "string"
     },
     {
-      "key": "adminToken",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "customerToken",
-      "value": "",
+      "key": "adminId",
+      "value": "REPLACE_WITH_ADMIN_ID",
       "type": "string"
     }
   ],
   "item": [
     {
-      "name": "1. Admin & Auth",
+      "name": "0. System Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Checks API server status, environment, uptime, and MongoDB connectivity."
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Admin Auth & Management",
       "item": [
         {
           "name": "1.1 Seed Initial Super Admin",
@@ -47,7 +60,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "admins", "seed"]
             },
-            "description": "Seed the first super_admin user. Works ONLY if zero admins exist in DB."
+            "description": "Creates initial Super Admin user. Only works if 0 admins exist in DB."
           }
         },
         {
@@ -66,7 +79,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "auth", "admin", "login"]
             },
-            "description": "Logs in admin and sets httpOnly cookie `adminToken`."
+            "description": "Authenticates admin and sets `adminToken` httpOnly Cookie."
           }
         },
         {
@@ -79,11 +92,60 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "auth", "admin", "me"]
             },
-            "description": "Returns current logged-in admin details."
+            "description": "Returns current logged in admin user info."
           }
         },
         {
-          "name": "1.4 Admin Logout",
+          "name": "1.4 Create New Admin/Staff (Super Admin Only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Staff Manager\",\n  \"phone\": \"01711111111\",\n  \"password\": \"staff123456\",\n  \"role\": \"staff\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admins",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admins"]
+            },
+            "description": "Creates new admin/staff user. Super Admin role required."
+          }
+        },
+        {
+          "name": "1.5 Get All Admin Users (Super Admin Only)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admins",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admins"]
+            }
+          }
+        },
+        {
+          "name": "1.6 Update Admin User (Super Admin Only)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Staff Manager Updated\",\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admins/{{adminId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admins", "{{adminId}}"]
+            }
+          }
+        },
+        {
+          "name": "1.7 Admin Logout",
           "request": {
             "method": "POST",
             "header": [],
@@ -93,59 +155,30 @@
               "path": ["api", "v1", "auth", "admin", "logout"]
             }
           }
-        },
-        {
-          "name": "1.5 Create New Admin / Staff (Super Admin)",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Staff Member\",\n  \"phone\": \"01711111111\",\n  \"password\": \"staff123456\",\n  \"role\": \"staff\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/admins",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "admins"]
-            }
-          }
-        },
-        {
-          "name": "1.6 Get All Admins (Super Admin)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/admins",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "admins"]
-            }
-          }
         }
       ]
     },
     {
-      "name": "2. Ground & Slots",
+      "name": "2. Ground & Slot Availability",
       "item": [
         {
-          "name": "2.1 GET Slots (Public)",
+          "name": "2.1 GET Slots (Public — No Auth Needed)",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/slots?date=2026-10-01",
+              "raw": "{{baseUrl}}/api/v1/slots?date=2026-10-05",
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "slots"],
               "query": [
-                { "key": "date", "value": "2026-10-01" }
+                { "key": "date", "value": "2026-10-05", "description": "YYYY-MM-DD format" }
               ]
-            }
+            },
+            "description": "Calculates available slots and pricing (including 48h discount if applicable)."
           }
         },
         {
-          "name": "2.2 POST Create Ground (Super Admin)",
+          "name": "2.2 POST Create Ground (Super Admin Only)",
           "request": {
             "method": "POST",
             "header": [
@@ -159,11 +192,12 @@
               "raw": "{{baseUrl}}/api/v1/ground",
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "ground"]
-            }
+            },
+            "description": "Initial setup to create Ground record. Super Admin role required."
           }
         },
         {
-          "name": "2.3 GET Ground Settings (Admin)",
+          "name": "2.3 GET Ground Settings (Admin Only)",
           "request": {
             "method": "GET",
             "header": [],
@@ -175,7 +209,7 @@
           }
         },
         {
-          "name": "2.4 PATCH Update Ground Settings (Super Admin)",
+          "name": "2.4 PATCH Update Ground Settings (Super Admin Only)",
           "request": {
             "method": "PATCH",
             "header": [
@@ -183,7 +217,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"pricePerSlot\": 850,\n  \"addClosures\": [\n    {\n      \"date\": \"2026-10-10\",\n      \"reason\": \"Turf Maintenance\"\n    }\n  ]\n}"
+              "raw": "{\n  \"pricePerSlot\": 850,\n  \"addClosures\": [\n    {\n      \"date\": \"2026-10-15\",\n      \"reason\": \"Turf Maintenance Day\"\n    }\n  ]\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/ground/settings/{{groundId}}",
@@ -212,7 +246,8 @@
               "raw": "{{baseUrl}}/api/v1/auth/customer/signup",
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "auth", "customer", "signup"]
-            }
+            },
+            "description": "Registers new customer account (or upgrades guest booking phone)."
           }
         },
         {
@@ -230,11 +265,12 @@
               "raw": "{{baseUrl}}/api/v1/auth/customer/login",
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "auth", "customer", "login"]
-            }
+            },
+            "description": "Authenticates customer and sets `customerToken` httpOnly Cookie."
           }
         },
         {
-          "name": "3.3 Customer Profile (Me)",
+          "name": "3.3 Get Current Customer (Me)",
           "request": {
             "method": "GET",
             "header": [],
@@ -255,6 +291,55 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "auth", "customer", "logout"]
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Customer Profile & Coupons",
+      "item": [
+        {
+          "name": "4.1 Get Customer Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customer/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "customer", "profile"]
+            }
+          }
+        },
+        {
+          "name": "4.2 Update Customer Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe Updated\",\n  \"email\": \"john.updated@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customer/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "customer", "profile"]
+            },
+            "description": "Updates customer profile. If profile completed after booking, awards ৳50 coupon."
+          }
+        },
+        {
+          "name": "4.3 Get Customer Active Coupons",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customer/coupons",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "customer", "coupons"]
+            },
+            "description": "Gets all active unused discount coupons belonging to logged-in customer."
           }
         }
       ]
