@@ -1,50 +1,12 @@
 import { Request, Response, NextFunction } from "express";
 import {
-  seedInitialSuperAdmin,
   createAdminUser,
   getAllAdmins,
   getAdminById,
   updateAdminUser,
 } from "./admin.service";
-import { createAdminSchema, updateAdminSchema, seedAdminSchema } from "./admin.validation";
+import { createAdminSchema, updateAdminSchema } from "./admin.validation";
 import CustomError from "../../helpers/CustomError";
-
-/**
- * POST /api/v1/admins/seed
- * Seed the first super_admin user if no admins exist yet.
- */
-export const seedAdminHandler = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> => {
-  try {
-    const parsed = seedAdminSchema.safeParse(req.body);
-    if (!parsed.success) {
-      const errors = parsed.error.issues.map((i) => ({
-        field: String(i.path[0] ?? "unknown"),
-        message: i.message,
-      }));
-      return next(new CustomError(400, "Validation failed", errors));
-    }
-
-    const superAdmin = await seedInitialSuperAdmin(parsed.data);
-
-    res.status(201).json({
-      success: true,
-      message: "Initial super admin seeded successfully.",
-      data: {
-        _id: superAdmin._id,
-        name: superAdmin.name,
-        phone: superAdmin.phone,
-        role: superAdmin.role,
-        isActive: superAdmin.isActive,
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
 
 /**
  * GET /api/v1/admins
@@ -95,6 +57,7 @@ export const createAdminHandler = async (
         _id: admin._id,
         name: admin.name,
         phone: admin.phone,
+        email: admin.email,
         role: admin.role,
         isActive: admin.isActive,
       },
@@ -137,6 +100,7 @@ export const updateAdminHandler = async (
         _id: updated._id,
         name: updated.name,
         phone: updated.phone,
+        email: updated.email,
         role: updated.role,
         isActive: updated.isActive,
       },

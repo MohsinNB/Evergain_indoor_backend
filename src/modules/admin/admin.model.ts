@@ -18,6 +18,14 @@ const adminUserSchema = new Schema<IAdminUser>(
       trim: true,
       match: [/^01[3-9]\d{8}$/, "Phone must be a valid Bangladeshi number (e.g. 01712345678)"],
     },
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      sparse: true,
+      unique: true,
+      match: [/^\S+@\S+\.\S+$/, "Email must be a valid email address"],
+    },
     passwordHash: {
       type: String,
       required: [true, "Password is required"],
@@ -37,6 +45,9 @@ const adminUserSchema = new Schema<IAdminUser>(
     timestamps: true,
   },
 );
+
+adminUserSchema.index({ phone: 1 }, { unique: true });
+adminUserSchema.index({ email: 1 }, { unique: true, sparse: true });
 
 // Hash password before save
 adminUserSchema.pre("save", async function () {

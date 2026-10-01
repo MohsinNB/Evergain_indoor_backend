@@ -7,15 +7,23 @@ import config from "../../config";
 import CustomError from "../../helpers/CustomError";
 
 /**
- * Login admin user and generate admin JWT.
+ * Login admin user by phone or email, and generate admin JWT.
  */
 export const loginAdmin = async (
   data: AdminLoginZodInput,
   res: Response,
 ): Promise<{ admin: Partial<IAdminUser>; token: string }> => {
-  const admin = await AdminUser.findOne({ phone: data.phone }).select("+passwordHash");
+  const loginIdentifier = (data.identifier || data.phone || data.email || "").trim();
+
+  const admin = await AdminUser.findOne({
+    $or: [
+      { phone: loginIdentifier },
+      { email: loginIdentifier.toLowerCase() },
+    ],
+  }).select("+passwordHash");
+
   if (!admin) {
-    throw new CustomError(401, "Invalid phone number or password.");
+    throw new CustomError(401, "Invalid phone/email or password.");
   }
 
   if (!admin.isActive) {
@@ -24,7 +32,7 @@ export const loginAdmin = async (
 
   const isMatch = await admin.comparePassword(data.password);
   if (!isMatch) {
-    throw new CustomError(401, "Invalid phone number or password.");
+    throw new CustomError(401, "Invalid phone/email or password.");
   }
 
   // Generate Admin JWT
@@ -48,14 +56,19 @@ export const loginAdmin = async (
     maxAge: 24 * 60 * 60 * 1000, // 1 day
   });
 
+  const adminResponse: Partial<IAdminUser> = {
+    _id: admin._id,
+    name: admin.name,
+    phone: admin.phone,
+    role: admin.role,
+    isActive: admin.isActive,
+  };
+  if (admin.email) {
+    adminResponse.email = admin.email;
+  }
+
   return {
-    admin: {
-      _id: admin._id,
-      name: admin.name,
-      phone: admin.phone,
-      role: admin.role,
-      isActive: admin.isActive,
-    },
+    admin: adminResponse,
     token,
   };
 };
