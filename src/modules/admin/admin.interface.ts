@@ -6,6 +6,7 @@ export interface IAdminUser extends Document {
   _id: Types.ObjectId;
   name: string;
   phone: string;
+  email?: string;
   passwordHash: string;
   role: AdminRole;
   isActive: boolean;
@@ -17,6 +18,7 @@ export interface IAdminUser extends Document {
 export type CreateAdminInput = {
   name: string;
   phone: string;
+  email?: string;
   password: string;
   role: AdminRole;
 };
@@ -24,6 +26,7 @@ export type CreateAdminInput = {
 export type UpdateAdminInput = {
   name?: string;
   phone?: string;
+  email?: string;
   password?: string;
   role?: AdminRole;
   isActive?: boolean;

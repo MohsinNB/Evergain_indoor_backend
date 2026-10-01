@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import chalk from "chalk";
 import config from "../config";
+import { seedSuperAdminsFromConfig } from "../modules/admin/admin.service";
 
 export const connectDatabase = async (): Promise<void> => {
   if (mongoose.connection.readyState >= 1) {
@@ -21,8 +22,8 @@ export const connectDatabase = async (): Promise<void> => {
       chalk.yellow(`Database connected: ${dbInfo.connection.host}`),
     );
 
-    // TODO: Register cron jobs here as modules are built
-    // e.g. startWeeklyBookingGeneratorCron() — permanent booking job (last module)
+    // Auto-seed initial super admins from config/env
+    await seedSuperAdminsFromConfig();
 
   } catch (error) {
     console.error(chalk.red("Database connection failed!!"), error);

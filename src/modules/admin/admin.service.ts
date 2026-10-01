@@ -1,45 +1,74 @@
 import AdminUser from "./admin.model";
 import { IAdminUser } from "./admin.interface";
-import { CreateAdminZodInput, UpdateAdminZodInput, SeedAdminZodInput } from "./admin.validation";
+import { CreateAdminZodInput, UpdateAdminZodInput } from "./admin.validation";
+import config from "../../config";
 import CustomError from "../../helpers/CustomError";
+import chalk from "chalk";
 
 /**
- * Seed initial super_admin if no admin exists in the system.
+ * Automatically seeds initial super_admin users from config/env on DB connection.
+ * Idempotent: checks by email/phone before creating.
  */
-export const seedInitialSuperAdmin = async (data: SeedAdminZodInput): Promise<IAdminUser> => {
-  const count = await AdminUser.countDocuments();
-  if (count > 0) {
-    throw new CustomError(400, "Super admin already seeded. An admin account already exists.");
+export const seedSuperAdminsFromConfig = async (): Promise<void> => {
+  const superAdminEmails = config.superAdmin.emails;
+  const defaultPassword = config.superAdmin.defaultPassword;
+
+  if (!superAdminEmails || superAdminEmails.length === 0) {
+    return;
   }
 
-  const superAdmin = await AdminUser.create({
-    name: data.name,
-    phone: data.phone,
-    passwordHash: data.password,
-    role: "super_admin",
-    isActive: true,
-  });
+  for (let i = 0; i < superAdminEmails.length; i++) {
+    const email = superAdminEmails[i];
+    if (!email) continue;
 
-  return superAdmin;
+    const defaultPhone = `0170000000${i + 1}`;
+
+    const existingAdmin = await AdminUser.findOne({
+      $or: [{ email }, { phone: defaultPhone }],
+    });
+
+    if (!existingAdmin) {
+      await AdminUser.create({
+        name: `Super Admin ${i + 1}`,
+        email,
+        phone: defaultPhone,
+        passwordHash: defaultPassword,
+        role: "super_admin",
+        isActive: true,
+      });
+      console.log(chalk.green(`[Auto-Seed] Super Admin created for email: ${email}`));
+    }
+  }
 };
 
 /**
  * Create new admin/staff user (super_admin only).
  */
 export const createAdminUser = async (data: CreateAdminZodInput): Promise<IAdminUser> => {
-  const existing = await AdminUser.findOne({ phone: data.phone });
-  if (existing) {
+  const existingPhone = await AdminUser.findOne({ phone: data.phone });
+  if (existingPhone) {
     throw new CustomError(400, "An admin user with this phone number already exists.");
   }
 
-  const newAdmin = await AdminUser.create({
+  if (data.email) {
+    const existingEmail = await AdminUser.findOne({ email: data.email.toLowerCase().trim() });
+    if (existingEmail) {
+      throw new CustomError(400, "An admin user with this email address already exists.");
+    }
+  }
+
+  const createPayload: Record<string, any> = {
     name: data.name,
     phone: data.phone,
     passwordHash: data.password,
     role: data.role,
     isActive: true,
-  });
+  };
+  if (data.email) {
+    createPayload["email"] = data.email.toLowerCase().trim();
+  }
 
+  const newAdmin = await AdminUser.create(createPayload);
   return newAdmin;
 };
 
@@ -80,6 +109,13 @@ export const updateAdminUser = async (
       throw new CustomError(400, "Another admin user with this phone number already exists.");
     }
     admin.phone = data.phone;
+  }
+  if (data.email !== undefined) {
+    const existing = await AdminUser.findOne({ email: data.email.toLowerCase().trim(), _id: { $ne: id } });
+    if (existing) {
+      throw new CustomError(400, "Another admin user with this email address already exists.");
+    }
+    admin.email = data.email.toLowerCase().trim();
   }
   if (data.password !== undefined) {
     admin.passwordHash = data.password;

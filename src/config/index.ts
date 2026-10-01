@@ -46,6 +46,15 @@ const config = {
     windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
     max: Number(process.env.RATE_LIMIT_MAX) || 100,
   },
+
+  /* ================= Super Admin Auto-Seeding ================= */
+  superAdmin: {
+    emails: (process.env.SUPER_ADMIN_EMAILS ?? "superadmin1@evergainavenue.com,superadmin2@evergainavenue.com")
+      .split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean),
+    defaultPassword: process.env.SUPER_ADMIN_DEFAULT_PASSWORD ?? "admin123456",
+  },
 };
 
 export default config;

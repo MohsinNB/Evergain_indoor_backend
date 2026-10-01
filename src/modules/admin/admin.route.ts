@@ -1,6 +1,5 @@
 import { Router } from "express";
 import {
-  seedAdminHandler,
   getAdminsHandler,
   createAdminHandler,
   updateAdminHandler,
@@ -8,9 +7,6 @@ import {
 import { adminAuthGuard, requireRole } from "../../middleware/auth.middleware";
 
 const router = Router();
-
-// Public seed endpoint (works only when 0 admins exist)
-router.post("/admins/seed", seedAdminHandler);
 
 // Protected super_admin endpoints
 router.get("/admins", adminAuthGuard, requireRole("super_admin"), getAdminsHandler);
