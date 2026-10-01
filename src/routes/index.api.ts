@@ -30,8 +30,10 @@ import adminAuthRoutes from "../modules/auth/auth.route";
 router.use("/", adminRoutes);
 router.use("/", adminAuthRoutes);
 
-// ── Customer Auth ─────────────────────────────────────────────────────────
+// ── Customer Auth & Profile ───────────────────────────────────────────────
 import customerAuthRoutes from "../modules/customerAuth/customerAuth.route";
+import customerRoutes from "../modules/customer/customer.route";
 router.use("/", customerAuthRoutes);
+router.use("/", customerRoutes);
 
 export default router;

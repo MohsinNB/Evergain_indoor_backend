@@ -25,5 +25,11 @@ export const customerLoginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+export const updateCustomerProfileSchema = z.object({
+  name: z.string().trim().min(1, "Name cannot be empty").max(100).optional(),
+  email: z.string().email("Must be a valid email address").optional(),
+});
+
 export type CustomerSignupZodInput = z.infer<typeof customerSignupSchema>;
 export type CustomerLoginZodInput = z.infer<typeof customerLoginSchema>;
+export type UpdateCustomerProfileZodInput = z.infer<typeof updateCustomerProfileSchema>;
