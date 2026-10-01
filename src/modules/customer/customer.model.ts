@@ -21,8 +21,10 @@ const customerSchema = new Schema<ICustomer>(
     email: {
       type: String,
       trim: true,
-      lowercase: true,
       sparse: true,
+      unique: true,
+      lowercase: true,
+
       match: [/^\S+@\S+\.\S+$/, "Email must be a valid email address"],
     },
     passwordHash: {
@@ -43,6 +45,10 @@ const customerSchema = new Schema<ICustomer>(
     timestamps: true,
   },
 );
+
+// Indexes
+customerSchema.index({ phone: 1 }, { unique: true });
+customerSchema.index({ email: 1 }, { unique: true, sparse: true });
 
 // Hash password before save if modified
 customerSchema.pre("save", async function () {

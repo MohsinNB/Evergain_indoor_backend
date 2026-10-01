@@ -32,8 +32,17 @@ export const updateCustomerProfile = async (
 
   const wasEmailMissing = !customer.email;
 
+  if (data.email !== undefined) {
+    const existingEmail = await Customer.findOne({
+      email: data.email.toLowerCase().trim(),
+      _id: { $ne: customer._id },
+    });
+    if (existingEmail) {
+      throw new CustomError(400, "An account with this email address already exists.");
+    }
+    customer.email = data.email;
+  }
   if (data.name !== undefined) customer.name = data.name;
-  if (data.email !== undefined) customer.email = data.email;
 
   await customer.save();
 

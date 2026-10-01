@@ -19,6 +19,17 @@ export const registerCustomer = async (
     throw new CustomError(400, "An account with this phone number already exists. Please login.");
   }
 
+  // Check duplicate email if email is provided
+  if (data.email) {
+    const existingEmail = await Customer.findOne({
+      email: data.email.toLowerCase().trim(),
+      _id: customer ? { $ne: customer._id } : { $exists: true },
+    });
+    if (existingEmail) {
+      throw new CustomError(400, "An account with this email address already exists.");
+    }
+  }
+
   if (customer && !customer.isRegistered) {
     // Upgrade existing guest customer to registered user
     customer.name = data.name;
