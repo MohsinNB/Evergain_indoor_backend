@@ -18,8 +18,6 @@ export const getCustomerProfile = async (customerId: string): Promise<ICustomer>
 
 /**
  * Update customer profile.
- * If customer completes profile (adds email for the first time) after having completed a booking,
- * issues a ৳50 profile completion coupon if not already issued.
  */
 export const updateCustomerProfile = async (
   customerId: string,
@@ -48,7 +46,6 @@ export const updateCustomerProfile = async (
 
   let couponAwarded = false;
 
-  // Check if eligible for ৳50 profile completion coupon (if email just added & has bookings & no coupon yet)
   if (wasEmailMissing && customer.email && customer.totalBookings > 0) {
     const existingCoupon = await DiscountCoupon.findOne({
       customerId: customer._id,
@@ -60,7 +57,7 @@ export const updateCustomerProfile = async (
         customerId: customer._id,
         type: "profile_completion",
         amountType: "fixed",
-        amountValue: 50, // ৳50 off
+        amountValue: 50,
         isUsed: false,
       });
       couponAwarded = true;
@@ -79,4 +76,40 @@ export const getCustomerCoupons = async (customerId: string): Promise<IDiscountC
     isUsed: false,
     $or: [{ expiresAt: { $exists: false } }, { expiresAt: { $gt: new Date() } }],
   }).sort({ createdAt: -1 });
+};
+
+/**
+ * Get list of all customers for Admin management (with search/pagination).
+ */
+export const getAllCustomersForAdmin = async (query: {
+  search?: string;
+  isRegistered?: boolean;
+  page?: number;
+  limit?: number;
+}): Promise<{ customers: ICustomer[]; total: number }> => {
+  const filter: Record<string, any> = {};
+
+  if (query.isRegistered !== undefined) {
+    filter["isRegistered"] = query.isRegistered;
+  }
+
+  if (query.search) {
+    const searchRegex = new RegExp(query.search, "i");
+    filter["$or"] = [
+      { name: searchRegex },
+      { phone: searchRegex },
+      { email: searchRegex },
+    ];
+  }
+
+  const page = query.page || 1;
+  const limit = query.limit || 50;
+  const skip = (page - 1) * limit;
+
+  const [customers, total] = await Promise.all([
+    Customer.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+    Customer.countDocuments(filter),
+  ]);
+
+  return { customers, total };
 };

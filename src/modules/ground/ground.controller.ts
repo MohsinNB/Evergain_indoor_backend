@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import {
-  getActiveGround,
+  getAllGrounds,
+  getGroundForSlots,
   buildSlotViews,
   isClosureDate,
   createGround,
@@ -11,20 +12,33 @@ import {
   createGroundSchema,
   updateGroundSettingsSchema,
 } from "./ground.validation";
+import { getBookedStartTimes } from "../booking/booking.service";
 import CustomError from "../../helpers/CustomError";
 
-// ── Public ─────────────────────────────────────────────────────────────────
+/**
+ * GET /api/v1/grounds
+ * Public endpoint: returns list of all active grounds.
+ */
+export const getPublicGroundsHandler = async (
+  _req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const grounds = await getAllGrounds(true);
+    res.status(200).json({
+      success: true,
+      message: "Active grounds fetched successfully.",
+      data: grounds,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 /**
- * GET /api/v1/slots?date=YYYY-MM-DD
- *
- * Returns all generated time slots for the active ground on the given date,
- * each with current availability (computed) and effective price (with 48h
- * discount if applicable).
- *
- * Bookings are injected by the booking module once it exists. For now the
- * controller fetches the ground and delegates slot-building to the service.
- * The booking service will expose getBookedStartTimes() which is imported here.
+ * GET /api/v1/slots?date=YYYY-MM-DD&groundId=...
+ * Public endpoint: returns time slots with live availability and pricing for a specific ground.
  */
 export const getSlots = async (
   req: Request,
@@ -32,7 +46,6 @@ export const getSlots = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    // Validate query params
     const parsed = getSlotsQuerySchema.safeParse(req.query);
     if (!parsed.success) {
       const errors = parsed.error.issues.map((i) => ({
@@ -42,17 +55,16 @@ export const getSlots = async (
       return next(new CustomError(400, "Validation failed", errors));
     }
 
-    const { date } = parsed.data;
+    const { date, groundId } = parsed.data;
+    const ground = await getGroundForSlots(groundId);
 
-    const ground = await getActiveGround();
-
-    // If this date is a closure, return no slots
     if (isClosureDate(ground, date)) {
       res.status(200).json({
         success: true,
         message: "Ground is closed on this date.",
         data: {
           groundId: ground._id,
+          groundName: ground.name,
           date,
           isClosed: true,
           closureReason:
@@ -63,13 +75,7 @@ export const getSlots = async (
       return;
     }
 
-    // ── Booking integration point ──────────────────────────────────────────
-    // Once the booking module is built, replace the empty Set below with:
-    //   import { getBookedStartTimes } from "../booking/booking.service";
-    //   const bookedStartTimes = await getBookedStartTimes(String(ground._id), date);
-    // For now no bookings exist so every slot is available.
-    const bookedStartTimes: Set<string> = new Set();
-
+    const bookedStartTimes = await getBookedStartTimes(String(ground._id), date);
     const slots = buildSlotViews(ground, date, bookedStartTimes);
 
     res.status(200).json({
@@ -90,11 +96,9 @@ export const getSlots = async (
   }
 };
 
-// ── Admin ──────────────────────────────────────────────────────────────────
-
 /**
  * GET /api/v1/ground/settings
- * Admin: get the active ground's full settings document.
+ * Admin: get all grounds settings list.
  */
 export const getGroundSettings = async (
   _req: Request,
@@ -102,11 +106,11 @@ export const getGroundSettings = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const ground = await getActiveGround();
+    const grounds = await getAllGrounds(false);
     res.status(200).json({
       success: true,
       message: "Ground settings fetched successfully.",
-      data: ground,
+      data: grounds,
     });
   } catch (error) {
     next(error);
@@ -115,8 +119,7 @@ export const getGroundSettings = async (
 
 /**
  * POST /api/v1/ground
- * Admin (super_admin only): create the ground record.
- * Should only be called once during initial setup.
+ * Admin: create a new ground record.
  */
 export const createGroundHandler = async (
   req: Request,
@@ -147,7 +150,7 @@ export const createGroundHandler = async (
 
 /**
  * PATCH /api/v1/ground/settings/:id
- * Admin (super_admin only): update ground settings, add/remove closures.
+ * Admin: update ground settings and closures.
  */
 export const updateGroundSettingsHandler = async (
   req: Request,
