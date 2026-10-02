@@ -18,6 +18,11 @@ export const customerSignupSchema = z.object({
     .string()
     .email("Email must be a valid email address")
     .optional(),
+  otp: z
+    .string()
+    .length(6, "OTP must be exactly 6 digits")
+    .regex(/^\d{6}$/, "OTP must contain numbers only"),
+  otpChannel: z.enum(["sms", "email"]).optional().default("sms"),
 });
 
 export const customerLoginSchema = z.object({

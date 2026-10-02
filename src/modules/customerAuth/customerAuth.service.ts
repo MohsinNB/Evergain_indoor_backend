@@ -3,6 +3,7 @@ import { Response } from "express";
 import Customer from "../customer/customer.model";
 import { ICustomer } from "../customer/customer.interface";
 import { CustomerSignupZodInput, CustomerLoginZodInput } from "../customer/customer.validation";
+import { verifyOTPService } from "../otp/otp.service";
 import config from "../../config";
 import CustomError from "../../helpers/CustomError";
 
@@ -13,6 +14,15 @@ export const registerCustomer = async (
   data: CustomerSignupZodInput,
   res: Response,
 ): Promise<{ customer: Partial<ICustomer>; token: string }> => {
+  // Verify OTP for chosen channel (sms or email)
+  await verifyOTPService({
+    channel: data.otpChannel ?? "sms",
+    phone: data.phone,
+    email: data.email,
+    otp: data.otp,
+    purpose: "signup",
+  });
+
   let customer = await Customer.findOne({ phone: data.phone });
 
   if (customer && customer.isRegistered) {

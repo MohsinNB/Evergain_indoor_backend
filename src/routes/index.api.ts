@@ -40,4 +40,8 @@ import customerRoutes from "../modules/customer/customer.route";
 router.use("/", customerAuthRoutes);
 router.use("/", customerRoutes);
 
+// ── OTP Module (Phone & Email Verification) ────────────────────────────────
+import otpRoutes from "../modules/otp/otp.route";
+router.use("/", otpRoutes);
+
 export default router;

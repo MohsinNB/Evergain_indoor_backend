@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "e9a8b7c6-d5e4-3f2a-1b0c-9d8e7f6a5b4c",
-    "name": "Evergain Avenue — Complete System API (Admin, Ground, Booking, Customer)",
-    "description": "Full Postman collection for Evergain Avenue Indoor Football System covering Auto-Seeded Super Admin Auth, Admin Management, Multi-Ground & Slot Settings, Admin Manual Booking, Customer Auth, Profile, Coupons & Admin Customer List.",
+    "name": "Evergain Avenue — Complete System API (Admin, Ground, Booking, Customer, OTP)",
+    "description": "Full Postman collection for Evergain Avenue Indoor Football System covering Auto-Seeded Super Admin Auth, Admin Management, Ground & Slot Settings, Admin Manual Booking, Customer Auth & Profile, and Dual-Channel OTP (Phone & Email).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -77,8 +77,7 @@
               "raw": "{{baseUrl}}/api/v1/auth/admin/me",
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "auth", "admin", "me"]
-            },
-            "description": "Returns current logged in admin user info."
+            }
           }
         },
         {
@@ -96,8 +95,7 @@
               "raw": "{{baseUrl}}/api/v1/admins",
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "admins"]
-            },
-            "description": "Creates new admin/staff user. Super Admin role required."
+            }
           }
         },
         {
@@ -156,8 +154,7 @@
               "raw": "{{baseUrl}}/api/v1/grounds",
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "grounds"]
-            },
-            "description": "Returns list of all active grounds so users can select a ground ID."
+            }
           }
         },
         {
@@ -170,11 +167,10 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "slots"],
               "query": [
-                { "key": "date", "value": "2026-10-05", "description": "YYYY-MM-DD format" },
-                { "key": "groundId", "value": "{{groundId}}", "description": "Specific ground ID" }
+                { "key": "date", "value": "2026-10-05" },
+                { "key": "groundId", "value": "{{groundId}}" }
               ]
-            },
-            "description": "Calculates available slots and pricing for the specified ground ID."
+            }
           }
         },
         {
@@ -192,8 +188,7 @@
               "raw": "{{baseUrl}}/api/v1/ground",
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "ground"]
-            },
-            "description": "Creates a new ground record."
+            }
           }
         },
         {
@@ -291,7 +286,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"John Doe\",\n  \"phone\": \"01812345678\",\n  \"password\": \"user123456\",\n  \"email\": \"john@example.com\"\n}"
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"phone\": \"01812345678\",\n  \"password\": \"user123456\",\n  \"email\": \"john@example.com\",\n  \"otp\": \"123456\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/auth/customer/signup",
@@ -352,10 +347,9 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "customers"],
               "query": [
-                { "key": "search", "value": "018", "description": "Search by name, phone, or email" }
+                { "key": "search", "value": "018" }
               ]
-            },
-            "description": "Admin endpoint: List all registered and guest customers with search and pagination."
+            }
           }
         }
       ]
@@ -403,6 +397,49 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "customer", "coupons"]
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. OTP (Phone & Email Verification)",
+      "item": [
+        {
+          "name": "5.1 Send OTP (Choose Channel: email or sms)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"email\",\n  \"email\": \"john@example.com\",\n  \"phone\": \"01812345678\",\n  \"purpose\": \"signup\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/otp/send",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "otp", "send"]
+            },
+            "description": "Sends 6-digit OTP via chosen channel ('email' or 'sms'). Enforces 60s cooldown & 5min expiry."
+          }
+        },
+        {
+          "name": "5.2 Verify OTP Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"channel\": \"email\",\n  \"email\": \"john@example.com\",\n  \"otp\": \"123456\",\n  \"purpose\": \"signup\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/otp/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "otp", "verify"]
+            },
+            "description": "Verifies 6-digit OTP code for the chosen channel (max 3 invalid attempts allowed)."
           }
         }
       ]
