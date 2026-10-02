@@ -3,6 +3,7 @@ import {
   getCustomerProfile,
   updateCustomerProfile,
   getCustomerCoupons,
+  getAllCustomersForAdmin,
 } from "./customer.service";
 import { updateCustomerProfileSchema } from "./customer.validation";
 import CustomError from "../../helpers/CustomError";
@@ -93,6 +94,41 @@ export const getCouponsHandler = async (
       success: true,
       message: "Customer coupons fetched successfully.",
       data: coupons,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/v1/customers (Admin Only)
+ * List all customers (registered and guest) with search and pagination.
+ */
+export const getCustomersForAdminHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const { search, isRegistered, page, limit } = req.query;
+
+    const queryFilter: { search?: string; isRegistered?: boolean; page?: number; limit?: number } = {};
+    if (search) queryFilter.search = String(search);
+    if (isRegistered !== undefined) queryFilter.isRegistered = isRegistered === "true";
+    if (page) queryFilter.page = Number(page);
+    if (limit) queryFilter.limit = Number(limit);
+
+    const result = await getAllCustomersForAdmin(queryFilter);
+
+    res.status(200).json({
+      success: true,
+      message: "Customers fetched successfully.",
+      data: result.customers,
+      meta: {
+        total: result.total,
+        page: queryFilter.page || 1,
+        limit: queryFilter.limit || 50,
+      },
     });
   } catch (error) {
     next(error);

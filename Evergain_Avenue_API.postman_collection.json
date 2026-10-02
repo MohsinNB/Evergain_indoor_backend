@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "e9a8b7c6-d5e4-3f2a-1b0c-9d8e7f6a5b4c",
-    "name": "Evergain Avenue — Complete System API (Admin, Ground, Customer)",
-    "description": "Full Postman collection for Evergain Avenue Indoor Football System covering Auto-Seeded Super Admin Auth, Admin Management, Ground & Slot Settings, Customer Auth, Profile & Coupons.",
+    "name": "Evergain Avenue — Complete System API (Admin, Ground, Booking, Customer)",
+    "description": "Full Postman collection for Evergain Avenue Indoor Football System covering Auto-Seeded Super Admin Auth, Admin Management, Multi-Ground & Slot Settings, Admin Manual Booking, Customer Auth, Profile, Coupons & Admin Customer List.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -19,6 +19,11 @@
     {
       "key": "adminId",
       "value": "REPLACE_WITH_ADMIN_ID",
+      "type": "string"
+    },
+    {
+      "key": "bookingId",
+      "value": "REPLACE_WITH_BOOKING_ID",
       "type": "string"
     }
   ],
@@ -140,26 +145,40 @@
       ]
     },
     {
-      "name": "2. Ground & Slot Availability",
+      "name": "2. Ground, Slots & Admin Manual Bookings",
       "item": [
         {
-          "name": "2.1 GET Slots (Public — No Auth Needed)",
+          "name": "2.1 GET Active Grounds (Public — No Auth Needed)",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/slots?date=2026-10-05",
+              "raw": "{{baseUrl}}/api/v1/grounds",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "slots"],
-              "query": [
-                { "key": "date", "value": "2026-10-05", "description": "YYYY-MM-DD format" }
-              ]
+              "path": ["api", "v1", "grounds"]
             },
-            "description": "Calculates available slots and pricing (including 48h discount if applicable)."
+            "description": "Returns list of all active grounds so users can select a ground ID."
           }
         },
         {
-          "name": "2.2 POST Create Ground (Super Admin Only)",
+          "name": "2.2 GET Slots by Ground & Date (Public — No Auth Needed)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/slots?date=2026-10-05&groundId={{groundId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "slots"],
+              "query": [
+                { "key": "date", "value": "2026-10-05", "description": "YYYY-MM-DD format" },
+                { "key": "groundId", "value": "{{groundId}}", "description": "Specific ground ID" }
+              ]
+            },
+            "description": "Calculates available slots and pricing for the specified ground ID."
+          }
+        },
+        {
+          "name": "2.3 POST Create Ground (Super Admin or Admin)",
           "request": {
             "method": "POST",
             "header": [
@@ -167,18 +186,18 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Evergain Avenue Ground 1\",\n  \"location\": \"Bashundhara R/A, Dhaka\",\n  \"openingTime\": \"08:00\",\n  \"closingTime\": \"23:00\",\n  \"slotDurationMinutes\": 60,\n  \"pricePerSlot\": 800,\n  \"isActive\": true,\n  \"closures\": []\n}"
+              "raw": "{\n  \"name\": \"Evergain Avenue Ground 2\",\n  \"location\": \"Uttara, Dhaka\",\n  \"openingTime\": \"09:00\",\n  \"closingTime\": \"23:00\",\n  \"slotDurationMinutes\": 60,\n  \"pricePerSlot\": 900,\n  \"isActive\": true,\n  \"closures\": []\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/ground",
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "ground"]
             },
-            "description": "Initial setup to create Ground record. Super Admin role required."
+            "description": "Creates a new ground record."
           }
         },
         {
-          "name": "2.3 GET Ground Settings (Admin Only)",
+          "name": "2.4 GET All Grounds Settings (Admin Only)",
           "request": {
             "method": "GET",
             "header": [],
@@ -190,7 +209,7 @@
           }
         },
         {
-          "name": "2.4 PATCH Update Ground Settings (Super Admin Only)",
+          "name": "2.5 PATCH Update Ground Settings (Super Admin Only)",
           "request": {
             "method": "PATCH",
             "header": [
@@ -206,11 +225,62 @@
               "path": ["api", "v1", "ground", "settings", "{{groundId}}"]
             }
           }
+        },
+        {
+          "name": "2.6 Admin Manual Booking / Block Slot (Admin Only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"groundId\": \"{{groundId}}\",\n  \"date\": \"2026-10-05\",\n  \"startTime\": \"18:00\",\n  \"customerName\": \"Walk-in Offline Customer\",\n  \"customerPhone\": \"01799999999\",\n  \"price\": 800,\n  \"paymentStatus\": \"paid\",\n  \"notes\": \"Offline cash payment at counter\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/bookings/admin-manual",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "bookings", "admin-manual"]
+            }
+          }
+        },
+        {
+          "name": "2.7 GET All Bookings (Admin Only)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/bookings?date=2026-10-05",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "bookings"],
+              "query": [
+                { "key": "date", "value": "2026-10-05" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "2.8 Admin Cancel Booking",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cancelReason\": \"Customer requested cancellation\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/bookings/{{bookingId}}/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "bookings", "{{bookingId}}", "cancel"]
+            }
+          }
         }
       ]
     },
     {
-      "name": "3. Customer Auth",
+      "name": "3. Customer Auth & Admin Management",
       "item": [
         {
           "name": "3.1 Customer Signup",
@@ -227,8 +297,7 @@
               "raw": "{{baseUrl}}/api/v1/auth/customer/signup",
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "auth", "customer", "signup"]
-            },
-            "description": "Registers new customer account."
+            }
           }
         },
         {
@@ -246,8 +315,7 @@
               "raw": "{{baseUrl}}/api/v1/auth/customer/login",
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "auth", "customer", "login"]
-            },
-            "description": "Authenticates customer and sets `customerToken` httpOnly Cookie."
+            }
           }
         },
         {
@@ -272,6 +340,22 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "auth", "customer", "logout"]
             }
+          }
+        },
+        {
+          "name": "3.5 GET All Customers / Users List (Admin Only)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers?search=018",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "customers"],
+              "query": [
+                { "key": "search", "value": "018", "description": "Search by name, phone, or email" }
+              ]
+            },
+            "description": "Admin endpoint: List all registered and guest customers with search and pagination."
           }
         }
       ]

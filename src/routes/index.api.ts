@@ -30,6 +30,10 @@ import adminAuthRoutes from "../modules/auth/auth.route";
 router.use("/", adminRoutes);
 router.use("/", adminAuthRoutes);
 
+// ── Module 2: Booking Management (Admin Manual Booking / Block Slot) ──────
+import bookingRoutes from "../modules/booking/booking.route";
+router.use("/", bookingRoutes);
+
 // ── Customer Auth & Profile ───────────────────────────────────────────────
 import customerAuthRoutes from "../modules/customerAuth/customerAuth.route";
 import customerRoutes from "../modules/customer/customer.route";

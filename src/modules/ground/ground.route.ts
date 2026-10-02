@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  getPublicGroundsHandler,
   getSlots,
   getGroundSettings,
   createGroundHandler,
@@ -9,46 +10,18 @@ import { adminAuthGuard, requireRole } from "../../middleware/auth.middleware";
 
 const router = Router();
 
-// ── Public ─────────────────────────────────────────────────────────────────
-
-/**
- * GET /api/v1/slots?date=YYYY-MM-DD
- * Returns all time slots for the active ground on a given date.
- * Slot status (available/unavailable) and price (with 48h discount) are computed on read.
- * No auth required.
- */
+// Public routes: Get all active grounds, Get slots for a specific ground and date
+router.get("/grounds", getPublicGroundsHandler);
 router.get("/slots", getSlots);
 
-// ── Admin ──────────────────────────────────────────────────────────────────
-
-/**
- * GET /api/v1/ground/settings
- * Returns the full ground settings document.
- * Requires admin authentication.
- */
-router.get(
-  "/ground/settings",
-  adminAuthGuard,
-  getGroundSettings,
-);
-
-/**
- * POST /api/v1/ground
- * Creates the ground record (one-time setup).
- * Requires super_admin role.
- */
+// Admin routes: Ground settings & creation
+router.get("/ground/settings", adminAuthGuard, getGroundSettings);
 router.post(
   "/ground",
   adminAuthGuard,
-  requireRole("super_admin"),
+  requireRole("super_admin", "admin"),
   createGroundHandler,
 );
-
-/**
- * PATCH /api/v1/ground/settings/:id
- * Updates ground settings and/or closure dates.
- * Requires super_admin role.
- */
 router.patch(
   "/ground/settings/:id",
   adminAuthGuard,
