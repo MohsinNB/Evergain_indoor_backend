@@ -3,6 +3,7 @@ import { ICustomer } from "./customer.interface";
 import { UpdateCustomerProfileZodInput } from "./customer.validation";
 import DiscountCoupon from "../discountCoupon/discountCoupon.model";
 import { IDiscountCoupon } from "../discountCoupon/discountCoupon.interface";
+import { awardProfileCompletionCoupon } from "../discountCoupon/discountCoupon.service";
 import CustomError from "../../helpers/CustomError";
 
 /**
@@ -44,25 +45,7 @@ export const updateCustomerProfile = async (
 
   await customer.save();
 
-  let couponAwarded = false;
-
-  if (wasEmailMissing && customer.email && customer.totalBookings > 0) {
-    const existingCoupon = await DiscountCoupon.findOne({
-      customerId: customer._id,
-      type: "profile_completion",
-    });
-
-    if (!existingCoupon) {
-      await DiscountCoupon.create({
-        customerId: customer._id,
-        type: "profile_completion",
-        amountType: "fixed",
-        amountValue: 50,
-        isUsed: false,
-      });
-      couponAwarded = true;
-    }
-  }
+  const { awarded: couponAwarded } = await awardProfileCompletionCoupon(String(customer._id));
 
   return { customer, couponAwarded };
 };

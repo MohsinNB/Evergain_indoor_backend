@@ -2,6 +2,7 @@ import Ground from "./ground.model";
 import { IGround, ISlotView } from "./ground.interface";
 import { CreateGroundInput, UpdateGroundSettingsInput } from "./ground.validation";
 import CustomError from "../../helpers/CustomError";
+import { logAuditAction } from "../auditLog/auditLog.service";
 
 const EARLY_BIRD_DISCOUNT_AMOUNT = 50;
 
@@ -127,11 +128,21 @@ export const createGround = async (data: CreateGroundInput): Promise<IGround> =>
 export const updateGroundSettings = async (
   id: string,
   update: UpdateGroundSettingsInput,
+  adminId?: string,
 ): Promise<IGround> => {
   const ground = await Ground.findById(id);
   if (!ground) {
     throw new CustomError(404, "Ground not found.");
   }
+
+  const beforeState = {
+    name: ground.name,
+    openingTime: ground.openingTime,
+    closingTime: ground.closingTime,
+    pricePerSlot: ground.pricePerSlot,
+    isActive: ground.isActive,
+    closuresCount: ground.closures.length,
+  };
 
   const { addClosures, removeClosureDates, ...plainFields } = update;
 
@@ -160,5 +171,21 @@ export const updateGroundSettings = async (
   }
 
   await ground.save();
+
+  // Audit Log
+  await logAuditAction({
+    actorId: adminId,
+    actorRole: "admin",
+    action: "ground.settings_update",
+    targetId: String(ground._id),
+    beforeState,
+    afterState: {
+      name: ground.name,
+      pricePerSlot: ground.pricePerSlot,
+      isActive: ground.isActive,
+      closuresCount: ground.closures.length,
+    },
+  });
+
   return ground;
 };

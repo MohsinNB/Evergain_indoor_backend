@@ -4,6 +4,7 @@ import Customer from "../customer/customer.model";
 import { ICustomer } from "../customer/customer.interface";
 import { CustomerSignupZodInput, CustomerLoginZodInput } from "../customer/customer.validation";
 import { verifyOTPService } from "../otp/otp.service";
+import { awardProfileCompletionCoupon } from "../discountCoupon/discountCoupon.service";
 import config from "../../config";
 import CustomError from "../../helpers/CustomError";
 
@@ -60,6 +61,9 @@ export const registerCustomer = async (
     }
     customer = await Customer.create(createPayload);
   }
+
+  // Award ৳50 Profile Completion Coupon if eligible (registered, email present, totalBookings >= 1)
+  await awardProfileCompletionCoupon(String(customer._id));
 
   // Generate Customer JWT
   const token = jwt.sign(

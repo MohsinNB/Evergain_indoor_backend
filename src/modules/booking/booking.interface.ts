@@ -8,6 +8,7 @@ export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 export interface IAppliedDiscount {
   type: "48h_early_bird" | "profile_completion" | "permanent_plan" | "none";
   amount: number;
+  couponId?: Types.ObjectId;
 }
 
 export interface IPaymentInfo {
@@ -34,7 +35,7 @@ export interface IBooking extends Document {
   customerPhone: string;
   price: number;
   appliedDiscount?: IAppliedDiscount;
-  holdExpiresAt?: Date;
+  holdExpiresAt?: Date | undefined;
   payment: IPaymentInfo;
   bookedByAdminId?: Types.ObjectId; // Traces if created manually by admin
   notes?: string;

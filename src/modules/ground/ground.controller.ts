@@ -172,7 +172,8 @@ export const updateGroundSettingsHandler = async (
       return next(new CustomError(400, "Validation failed", errors));
     }
 
-    const updated = await updateGroundSettings(id, parsed.data);
+    const adminId = req.admin?._id ? String(req.admin._id) : undefined;
+    const updated = await updateGroundSettings(id, parsed.data, adminId);
 
     res.status(200).json({
       success: true,
