@@ -13,6 +13,7 @@ export const createBookingRequestSchema = z.object({
   startTime: z.string().regex(hhmmRegex, "Start time must be in HH:mm format"),
   name: z.string().trim().min(1, "Name is required").max(100),
   phone: z.string().regex(phoneRegex, "Phone must be a valid Bangladeshi number"),
+  couponId: z.string().optional(),
 });
 
 /**

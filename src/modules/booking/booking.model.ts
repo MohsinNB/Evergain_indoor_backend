@@ -13,6 +13,10 @@ const appliedDiscountSchema = new Schema<IAppliedDiscount>(
       default: 0,
       min: 0,
     },
+    couponId: {
+      type: Schema.Types.ObjectId,
+      ref: "DiscountCoupon",
+    },
   },
   { _id: false },
 );

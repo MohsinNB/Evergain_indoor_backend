@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import {
+  createGuestBookingRequest,
   createAdminManualBooking,
   getAdminBookings,
   getBookingById,
@@ -7,10 +8,51 @@ import {
   markBookingNoShow,
 } from "./booking.service";
 import {
+  createBookingRequestSchema,
   createAdminManualBookingSchema,
   cancelBookingSchema,
 } from "./booking.validation";
 import CustomError from "../../helpers/CustomError";
+
+
+/**
+ * POST /api/v1/bookings/request
+ * Public: Guest booking request with 15-min hold & SSLCommerz checkout session initiation.
+ */
+export const createGuestBookingRequestHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const parsed = createBookingRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const errors = parsed.error.issues.map((i) => ({
+        field: String(i.path[0] ?? "unknown"),
+        message: i.message,
+      }));
+      return next(new CustomError(400, "Validation failed", errors));
+    }
+
+    const hostHeader = req.get("host") || undefined;
+    const result = await createGuestBookingRequest(parsed.data, hostHeader);
+
+    res.status(201).json({
+      success: true,
+      message: "Booking request created successfully. 15-minute hold active.",
+      data: {
+        bookingId: result.booking._id,
+        tranId: result.tranId,
+        price: result.booking.price,
+        appliedDiscount: result.booking.appliedDiscount,
+        holdExpiresAt: result.holdExpiresAt,
+        gatewayUrl: result.gatewayUrl,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 /**
  * POST /api/v1/bookings/admin-manual
@@ -138,7 +180,8 @@ export const cancelBookingHandler = async (
       return next(new CustomError(400, "Validation failed", errors));
     }
 
-    const booking = await cancelBookingByAdmin(id, parsed.data.cancelReason);
+    const adminId = req.admin?._id ? String(req.admin._id) : undefined;
+    const booking = await cancelBookingByAdmin(id, parsed.data.cancelReason, adminId);
 
     res.status(200).json({
       success: true,
@@ -165,7 +208,8 @@ export const noShowBookingHandler = async (
       return next(new CustomError(400, "Booking ID is required."));
     }
 
-    const booking = await markBookingNoShow(id);
+    const adminId = req.admin?._id ? String(req.admin._id) : undefined;
+    const booking = await markBookingNoShow(id, adminId);
 
     res.status(200).json({
       success: true,

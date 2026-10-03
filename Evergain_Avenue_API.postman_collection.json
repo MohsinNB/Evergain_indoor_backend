@@ -443,6 +443,357 @@
           }
         }
       ]
+    },
+    {
+      "name": "6. Guest Booking & SSLCommerz Payment",
+      "item": [
+        {
+          "name": "6.1 Create Guest Booking Request (15-min hold + SSLCommerz session)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"groundId\": \"{{groundId}}\",\n  \"date\": \"2026-10-10\",\n  \"startTime\": \"18:00\",\n  \"name\": \"Rahim Ahmed\",\n  \"phone\": \"01799887766\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/bookings/request",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "bookings", "request"]
+            },
+            "description": "Public guest booking request. Computes 48h early-bird discount if eligible, enforces max 1 pending hold per phone, creates 15-min PENDING booking, and returns SSLCommerz checkout URL."
+          }
+        },
+        {
+          "name": "6.2 SSLCommerz Success Callback (Validated Server-to-Server)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "tran_id", "value": "EAG_1750000000000_1234", "type": "text" },
+                { "key": "val_id", "value": "MOCK_VAL_999", "type": "text" },
+                { "key": "card_type", "value": "BKASH-BKASH", "type": "text" },
+                { "key": "amount", "value": "450", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/payment/sslcommerz/success?json=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "payment", "sslcommerz", "success"],
+              "query": [
+                { "key": "json", "value": "true" }
+              ]
+            },
+            "description": "SSLCommerz success redirect. Performs server-to-server validation, updates booking to BOOKED, clears hold, increments customer booking count."
+          }
+        },
+        {
+          "name": "6.3 SSLCommerz Fail Callback",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "tran_id", "value": "EAG_1750000000000_1234", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/payment/sslcommerz/fail?json=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "payment", "sslcommerz", "fail"],
+              "query": [
+                { "key": "json", "value": "true" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "6.4 SSLCommerz Cancel Callback",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "tran_id", "value": "EAG_1750000000000_1234", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/payment/sslcommerz/cancel?json=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "payment", "sslcommerz", "cancel"],
+              "query": [
+                { "key": "json", "value": "true" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "6.5 SSLCommerz Server-to-Server IPN Callback",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tran_id\": \"EAG_1750000000000_1234\",\n  \"val_id\": \"MOCK_VAL_999\",\n  \"status\": \"VALID\",\n  \"amount\": \"450\",\n  \"card_type\": \"BKASH-BKASH\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/payment/sslcommerz/ipn",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "payment", "sslcommerz", "ipn"]
+            },
+            "description": "Server-to-server IPN callback. Validates transaction via SSLCommerz validation API. Idempotent: safe to call multiple times."
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Photo Gallery Management",
+      "item": [
+        {
+          "name": "7.1 Get Public Photo Gallery",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/gallery",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "gallery"]
+            },
+            "description": "Public endpoint to list all photos in the gallery, sorted by displayOrder ASC and uploadedAt DESC."
+          }
+        },
+        {
+          "name": "7.2 Upload Image to Gallery (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "image", "type": "file", "src": [] },
+                { "key": "caption", "value": "Night match under floodlights", "type": "text" },
+                { "key": "displayOrder", "value": "1", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/gallery/upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "gallery", "upload"]
+            },
+            "description": "Admin endpoint to upload an image to Cloudinary (or mock fallback if unconfigured) and add to gallery."
+          }
+        },
+        {
+          "name": "7.3 Update Gallery Item Caption / Order (Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"caption\": \"Updated Turf Night View\",\n  \"displayOrder\": 2\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/gallery/REPLACE_WITH_GALLERY_ID",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "gallery", "REPLACE_WITH_GALLERY_ID"]
+            }
+          }
+        },
+        {
+          "name": "7.4 Reorder Gallery Images (Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orders\": [\n    { \"id\": \"REPLACE_WITH_GALLERY_ID_1\", \"displayOrder\": 1 },\n    { \"id\": \"REPLACE_WITH_GALLERY_ID_2\", \"displayOrder\": 2 }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/gallery/reorder",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "gallery", "reorder"]
+            }
+          }
+        },
+        {
+          "name": "7.5 Delete Image from Gallery (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/gallery/REPLACE_WITH_GALLERY_ID",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "gallery", "REPLACE_WITH_GALLERY_ID"]
+            },
+            "description": "Admin endpoint to delete photo from Cloudinary and MongoDB database."
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Analytics & System Audit Log",
+      "item": [
+        {
+          "name": "8.1 Daily Analytics Report (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/daily?date=2026-10-15",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "analytics", "daily"],
+              "query": [
+                { "key": "date", "value": "2026-10-15" }
+              ]
+            },
+            "description": "Admin endpoint for daily revenue, occupancy rate, booking counts and payment method breakdown."
+          }
+        },
+        {
+          "name": "8.2 Monthly Analytics Report (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/monthly?year=2026&month=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "analytics", "monthly"],
+              "query": [
+                { "key": "year", "value": "2026" },
+                { "key": "month", "value": "10" }
+              ]
+            },
+            "description": "Admin endpoint for monthly revenue, daily trends, peak booking hours, cancellation & no-show rates."
+          }
+        },
+        {
+          "name": "8.3 Yearly Analytics Report (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/yearly?year=2026",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "analytics", "yearly"],
+              "query": [
+                { "key": "year", "value": "2026" }
+              ]
+            },
+            "description": "Admin endpoint for annual revenue, monthly trend, and customer retention metrics."
+          }
+        },
+        {
+          "name": "8.4 View System Audit Logs (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/audit-logs",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "audit-logs"]
+            },
+            "description": "Admin endpoint to view paginated system audit logs."
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Permanent Booking & Weekly Auto-Generator",
+      "item": [
+        {
+          "name": "9.1 Create Permanent Booking Commitment (Customer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"groundId\": \"{{groundId}}\",\n  \"dayOfWeek\": 5,\n  \"startTime\": \"19:00\",\n  \"startDate\": \"2026-10-16\",\n  \"commitmentMonths\": 3\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/permanent-bookings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "permanent-bookings"]
+            },
+            "description": "Registered customer creates a 3-month recurring weekly slot booking commitment (dayOfWeek 5 = Friday)."
+          }
+        },
+        {
+          "name": "9.2 Get Customer Permanent Booking Plans (Customer)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/permanent-bookings/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "permanent-bookings", "me"]
+            },
+            "description": "View active permanent booking commitments for logged in customer."
+          }
+        },
+        {
+          "name": "9.3 Admin List All Permanent Booking Plans (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/permanent-bookings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "permanent-bookings"]
+            },
+            "description": "Admin list all permanent booking plans with status and ground filters."
+          }
+        },
+        {
+          "name": "9.4 Admin Update Permanent Plan Discount (Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"discountType\": \"fixed\",\n  \"discountValue\": 100\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/permanent-bookings/REPLACE_WITH_PLAN_ID/discount",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "permanent-bookings", "REPLACE_WITH_PLAN_ID", "discount"]
+            }
+          }
+        },
+        {
+          "name": "9.5 Cancel Permanent Booking Plan (Admin/Customer)",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/permanent-bookings/REPLACE_WITH_PLAN_ID/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "permanent-bookings", "REPLACE_WITH_PLAN_ID", "cancel"]
+            }
+          }
+        }
+      ]
     }
   ]
 }

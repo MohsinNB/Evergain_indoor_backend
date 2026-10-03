@@ -1,13 +1,26 @@
 import Booking from "./booking.model";
 import { IBooking, IPaymentInfo } from "./booking.interface";
-import { CreateAdminManualBookingZodInput } from "./booking.validation";
+import { CreateAdminManualBookingZodInput, CreateBookingRequestZodInput } from "./booking.validation";
 import Ground from "../ground/ground.model";
 import Customer from "../customer/customer.model";
 import CustomError from "../../helpers/CustomError";
 import { Types } from "mongoose";
+import { calculateBookingPrice } from "./pricing.util";
+import { initSSLCommerzPayment } from "../payment/sslcommerz.service";
+import { validateCustomerCoupon } from "../discountCoupon/discountCoupon.service";
+import { logAuditAction } from "../auditLog/auditLog.service";
+import config from "../../config";
+
+export interface CreateGuestBookingRequestOutput {
+  booking: IBooking;
+  gatewayUrl: string;
+  tranId: string;
+  holdExpiresAt: Date;
+}
+
 
 /**
- * Returns a Set of startTime strings ("HH:mm") that are currently PENDING or BOOKED
+ * Returns a Set of startTime strings ("HH:mm") that are currently PENDING (and active) or BOOKED
  * for the given ground on the given date.
  * Plugs directly into GET /slots availability computation!
  */
@@ -18,7 +31,10 @@ export const getBookedStartTimes = async (
   const activeBookings = await Booking.find({
     groundId,
     date,
-    status: { $in: ["PENDING", "BOOKED"] },
+    $or: [
+      { status: "BOOKED" },
+      { status: "PENDING", holdExpiresAt: { $gt: new Date() } },
+    ],
   }).select("startTime");
 
   return new Set(activeBookings.map((b) => b.startTime));
@@ -56,12 +72,15 @@ export const createAdminManualBooking = async (
     throw new CustomError(400, "Cannot book slot on a ground closure date.");
   }
 
-  // Check existing active booking for this slot
+  // Check existing active booking for this slot (BOOKED or active PENDING hold)
   const existingSlotBooking = await Booking.findOne({
     groundId: data.groundId,
     date: data.date,
     startTime: data.startTime,
-    status: { $in: ["PENDING", "BOOKED"] },
+    $or: [
+      { status: "BOOKED" },
+      { status: "PENDING", holdExpiresAt: { $gt: new Date() } },
+    ],
   });
 
   if (existingSlotBooking) {
@@ -119,6 +138,21 @@ export const createAdminManualBooking = async (
     // Increment customer booking count
     customer.totalBookings += 1;
     await customer.save();
+
+    // Audit Log
+    await logAuditAction({
+      actorId: adminId,
+      actorRole: "admin",
+      action: "booking.admin_manual_create",
+      targetId: String(booking._id),
+      afterState: {
+        groundId: booking.groundId,
+        date: booking.date,
+        startTime: booking.startTime,
+        customerName: booking.customerName,
+        price: booking.price,
+      },
+    });
 
     return booking;
   } catch (error: any) {
@@ -178,6 +212,7 @@ export const getBookingById = async (id: string): Promise<IBooking> => {
 export const cancelBookingByAdmin = async (
   bookingId: string,
   cancelReason: string,
+  adminId?: string,
 ): Promise<IBooking> => {
   const booking = await Booking.findById(bookingId);
   if (!booking) {
@@ -188,18 +223,33 @@ export const cancelBookingByAdmin = async (
     throw new CustomError(400, "Booking is already cancelled.");
   }
 
+  const beforeState = { status: booking.status };
   booking.status = "CANCELLED";
   booking.cancelledAt = new Date();
   booking.cancelReason = cancelReason;
 
   await booking.save();
+
+  // Audit Log
+  await logAuditAction({
+    actorId: adminId,
+    actorRole: "admin",
+    action: "booking.cancel",
+    targetId: String(booking._id),
+    beforeState,
+    afterState: { status: "CANCELLED", cancelReason },
+  });
+
   return booking;
 };
 
 /**
  * Admin marks booking as NO_SHOW.
  */
-export const markBookingNoShow = async (bookingId: string): Promise<IBooking> => {
+export const markBookingNoShow = async (
+  bookingId: string,
+  adminId?: string,
+): Promise<IBooking> => {
   const booking = await Booking.findById(bookingId);
   if (!booking) {
     throw new CustomError(404, "Booking not found.");
@@ -211,5 +261,201 @@ export const markBookingNoShow = async (bookingId: string): Promise<IBooking> =>
 
   booking.status = "NO_SHOW";
   await booking.save();
+
+  // Audit Log
+  await logAuditAction({
+    actorId: adminId,
+    actorRole: "admin",
+    action: "booking.no_show",
+    targetId: String(booking._id),
+    afterState: { status: "NO_SHOW" },
+  });
+
   return booking;
 };
+
+/**
+ * Public Guest One-Time Booking Request
+ * Creates a PENDING booking with 15-min hold, applies 48-hour early bird discount if eligible,
+ * enforces hold-abuse protection (max 1 pending booking per phone), and initializes SSLCommerz session.
+ */
+export const createGuestBookingRequest = async (
+  data: CreateBookingRequestZodInput,
+  hostHeader?: string,
+): Promise<CreateGuestBookingRequestOutput> => {
+  // 1. Verify ground exists and is active
+  const ground = await Ground.findById(data.groundId);
+  if (!ground || !ground.isActive) {
+    throw new CustomError(404, "Active ground not found.");
+  }
+
+  // 2. Check for ground closure on requested date
+  const isClosed = ground.closures.some((c) => c.date === data.date);
+  if (isClosed) {
+    throw new CustomError(400, "Cannot book slot on a ground closure date.");
+  }
+
+  // 3. Verify startTime falls within opening and closing hours on exact slot duration boundaries
+  const [startH, startM] = data.startTime.split(":").map(Number);
+  const [openH, openM] = ground.openingTime.split(":").map(Number);
+  const [closeH, closeM] = ground.closingTime.split(":").map(Number);
+
+  const slotStartMins = (startH ?? 0) * 60 + (startM ?? 0);
+  const openMins = (openH ?? 0) * 60 + (openM ?? 0);
+  const closeMins = (closeH ?? 0) * 60 + (closeM ?? 0);
+
+  if (
+    slotStartMins < openMins ||
+    slotStartMins + ground.slotDurationMinutes > closeMins ||
+    (slotStartMins - openMins) % ground.slotDurationMinutes !== 0
+  ) {
+    throw new CustomError(
+      400,
+      `Slot ${data.startTime} is invalid for ground schedule (${ground.openingTime} - ${ground.closingTime}, duration ${ground.slotDurationMinutes} mins).`,
+    );
+  }
+
+  // 4. Hold-abuse protection: Ensure customer phone does NOT have an active PENDING booking hold
+  const existingPendingHold = await Booking.findOne({
+    customerPhone: data.phone,
+    status: "PENDING",
+    holdExpiresAt: { $gt: new Date() },
+  });
+
+  if (existingPendingHold) {
+    throw new CustomError(
+      409,
+      "You already have an active pending booking. Please complete it or wait for it to expire before booking another slot.",
+    );
+  }
+
+  // 5. Clean up any stale expired pending holds for this slot to avoid TTL race conditions
+  await Booking.updateMany(
+    {
+      groundId: data.groundId,
+      date: data.date,
+      startTime: data.startTime,
+      status: "PENDING",
+      holdExpiresAt: { $lte: new Date() },
+    },
+    { $set: { status: "EXPIRED" } },
+  );
+
+  // Check if the slot is currently BOOKED or has an active PENDING hold
+  const existingSlotBooking = await Booking.findOne({
+    groundId: data.groundId,
+    date: data.date,
+    startTime: data.startTime,
+    $or: [
+      { status: "BOOKED" },
+      { status: "PENDING", holdExpiresAt: { $gt: new Date() } },
+    ],
+  });
+
+  if (existingSlotBooking) {
+    throw new CustomError(
+      409,
+      `Slot ${data.startTime} on ${data.date} is already ${existingSlotBooking.status.toLowerCase()}.`,
+    );
+  }
+
+  // 6. Upsert Customer trace by phone
+  let customer = await Customer.findOne({ phone: data.phone });
+  if (!customer) {
+    customer = await Customer.create({
+      name: data.name,
+      phone: data.phone,
+      isRegistered: false,
+    });
+  }
+
+  // Check optional discount coupon if provided
+  let validCoupon = null;
+  if (data.couponId) {
+    validCoupon = await validateCustomerCoupon(data.couponId, String(customer._id));
+  }
+
+  // 7. Compute price and discounts (Single largest discount wins)
+  const { price, appliedDiscount, appliedCouponId } = calculateBookingPrice(
+    ground.pricePerSlot,
+    data.date,
+    data.startTime,
+    validCoupon,
+  );
+
+  const discountToApply: Record<string, any> = { ...appliedDiscount };
+  if (appliedCouponId) {
+    discountToApply["couponId"] = new Types.ObjectId(appliedCouponId);
+  }
+
+  // 8. Prepare slot metadata
+  const endTime = calculateEndTime(data.startTime, ground.slotDurationMinutes);
+  const holdExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15-min hold
+  const tranId = `EAG_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
+
+  // 9. Save PENDING booking
+  let booking: IBooking;
+  try {
+    booking = await Booking.create({
+      groundId: ground._id,
+      bookingType: "one_time",
+      date: data.date,
+      startTime: data.startTime,
+      endTime,
+      status: "PENDING",
+      customerId: customer._id,
+      customerName: data.name,
+      customerPhone: data.phone,
+      price,
+      appliedDiscount: discountToApply,
+      holdExpiresAt,
+      payment: {
+        method: "gateway",
+        status: "pending",
+        tranId,
+        amount: price,
+      },
+    });
+  } catch (error: any) {
+    if (error.code === 11000) {
+      throw new CustomError(
+        409,
+        `Slot ${data.startTime} on ${data.date} was just selected by another user.`,
+      );
+    }
+    throw error;
+  }
+
+  // 10. Initialize SSLCommerz Payment Session
+  const hostUrl = hostHeader
+    ? `${hostHeader.startsWith("http") ? "" : "http://"}${hostHeader}/api/v1`
+    : `http://localhost:${config.port}/api/v1`;
+
+  const sslRes = await initSSLCommerzPayment({
+    tranId,
+    amount: price,
+    customerName: data.name,
+    customerPhone: data.phone,
+    customerEmail: customer.email,
+    productName: `Evergain Football Slot (${data.date} ${data.startTime})`,
+    successUrl: `${hostUrl}/payment/sslcommerz/success`,
+    failUrl: `${hostUrl}/payment/sslcommerz/fail`,
+    cancelUrl: `${hostUrl}/payment/sslcommerz/cancel`,
+    ipnUrl: `${hostUrl}/payment/sslcommerz/ipn`,
+  });
+
+  if (!sslRes.GatewayPageURL) {
+    throw new CustomError(
+      500,
+      `SSLCommerz session creation failed: ${sslRes.failedreason || "Unknown error"}`,
+    );
+  }
+
+  return {
+    booking,
+    gatewayUrl: sslRes.GatewayPageURL,
+    tranId,
+    holdExpiresAt,
+  };
+};
+

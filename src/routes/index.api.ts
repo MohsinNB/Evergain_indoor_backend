@@ -34,6 +34,14 @@ router.use("/", adminAuthRoutes);
 import bookingRoutes from "../modules/booking/booking.route";
 router.use("/", bookingRoutes);
 
+// ── Module 3: Payment Gateway (SSLCommerz Integration & IPN) ──────────────
+import paymentRoutes from "../modules/payment/payment.route";
+router.use("/", paymentRoutes);
+
+// ── Module 4: Photo Gallery (Cloudinary Management) ──────────────────────
+import galleryRoutes from "../modules/gallery/gallery.route";
+router.use("/", galleryRoutes);
+
 // ── Customer Auth & Profile ───────────────────────────────────────────────
 import customerAuthRoutes from "../modules/customerAuth/customerAuth.route";
 import customerRoutes from "../modules/customer/customer.route";
@@ -43,5 +51,13 @@ router.use("/", customerRoutes);
 // ── OTP Module (Phone & Email Verification) ────────────────────────────────
 import otpRoutes from "../modules/otp/otp.route";
 router.use("/", otpRoutes);
+
+// ── Module 6: Analytics & Audit Log ──────────────────────────────────────
+import analyticsRoutes from "../modules/analytics/analytics.route";
+import auditLogRoutes from "../modules/auditLog/auditLog.route";
+router.use("/", analyticsRoutes);
+// ── Module 7: Permanent Booking ───────────────────────────────────────────
+import permanentBookingRoutes from "../modules/permanentBooking/permanentBooking.route";
+router.use("/", permanentBookingRoutes);
 
 export default router;

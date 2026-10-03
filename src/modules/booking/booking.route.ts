@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  createGuestBookingRequestHandler,
   createAdminManualBookingHandler,
   getAdminBookingsHandler,
   getBookingByIdHandler,
@@ -7,10 +8,24 @@ import {
   noShowBookingHandler,
 } from "./booking.controller";
 import { adminAuthGuard } from "../../middleware/auth.middleware";
+import { rateLimiter } from "../../middleware/rateLimiter.middleware";
 
 const router = Router();
 
+// ── Public Guest Booking Routes ──────────────────────────────────────────────
+
+/**
+ * POST /api/v1/bookings/request
+ * Public: Guest booking request (15-min hold, 48h discount, SSLCommerz checkout session).
+ */
+router.post(
+  "/bookings/request",
+  rateLimiter(10, 15 * 60 * 1000), // Max 10 requests per 15 min per IP
+  createGuestBookingRequestHandler,
+);
+
 // ── Admin Protected Booking Routes ─────────────────────────────────────────
+
 
 /**
  * POST /api/v1/bookings/admin-manual
