@@ -6,8 +6,11 @@ import {
   getBookingByIdHandler,
   cancelBookingHandler,
   noShowBookingHandler,
+  getPublicBookingReceiptHandler,
+  getMyCustomerBookingsHandler,
+  getMonthlyCalendarOverviewHandler,
 } from "./booking.controller";
-import { adminAuthGuard } from "../../middleware/auth.middleware";
+import { adminAuthGuard, customerAuthGuard } from "../../middleware/auth.middleware";
 import { rateLimiter } from "../../middleware/rateLimiter.middleware";
 
 const router = Router();
@@ -24,8 +27,38 @@ router.post(
   createGuestBookingRequestHandler,
 );
 
+/**
+ * GET /api/v1/bookings/public-receipt/:identifier
+ * Public: Fetch booking receipt details by ID or transaction ID.
+ */
+router.get(
+  "/bookings/public-receipt/:identifier",
+  getPublicBookingReceiptHandler,
+);
+
+// ── Customer Protected Routes ───────────────────────────────────────────────
+
+/**
+ * GET /api/v1/bookings/me
+ * Customer: Fetch current customer's booking history.
+ */
+router.get(
+  "/bookings/me",
+  customerAuthGuard,
+  getMyCustomerBookingsHandler,
+);
+
 // ── Admin Protected Booking Routes ─────────────────────────────────────────
 
+/**
+ * GET /api/v1/calendar
+ * Admin: Get monthly calendar overview of slot availability and revenue.
+ */
+router.get(
+  "/calendar",
+  adminAuthGuard,
+  getMonthlyCalendarOverviewHandler,
+);
 
 /**
  * POST /api/v1/bookings/admin-manual

@@ -459,3 +459,140 @@ export const createGuestBookingRequest = async (
   };
 };
 
+/**
+ * Public Booking Receipt / Confirmation Lookup by ID or Transaction ID
+ */
+export const getPublicBookingReceipt = async (identifier: string): Promise<IBooking> => {
+  let booking = null;
+  if (Types.ObjectId.isValid(identifier)) {
+    booking = await Booking.findById(identifier).populate("groundId", "name location");
+  }
+  if (!booking) {
+    booking = await Booking.findOne({ "payment.tranId": identifier }).populate("groundId", "name location");
+  }
+  if (!booking) {
+    throw new CustomError(404, "Booking not found.");
+  }
+  return booking;
+};
+
+/**
+ * Get all bookings for logged-in Customer
+ */
+export const getMyCustomerBookings = async (
+  customerId: string,
+  customerPhone: string,
+): Promise<IBooking[]> => {
+  return Booking.find({
+    $or: [
+      { customerId: new Types.ObjectId(customerId) },
+      { customerPhone },
+    ],
+  })
+    .populate("groundId", "name location")
+    .sort({ date: -1, startTime: -1 });
+};
+
+/**
+ * Admin Monthly Calendar View (GET /api/v1/calendar?month=YYYY-MM)
+ */
+export const getMonthlyCalendarOverview = async (
+  monthStr: string,
+  groundId?: string,
+): Promise<{
+  month: string;
+  days: Array<{
+    date: string;
+    dayOfWeek: number;
+    isClosed: boolean;
+    closureReason?: string;
+    totalBookings: number;
+    totalRevenue: number;
+    bookings: Array<{
+      id: string;
+      startTime: string;
+      endTime: string;
+      status: string;
+      customerName: string;
+      customerPhone: string;
+      price: number;
+      paymentStatus?: string;
+    }>;
+  }>;
+}> => {
+  const [year, month] = monthStr.split("-").map(Number);
+  if (!year || !month || month < 1 || month > 12) {
+    throw new CustomError(400, "Invalid month format. Expected YYYY-MM.");
+  }
+
+  let groundFilter: Record<string, any> = {};
+  if (groundId) groundFilter["_id"] = groundId;
+  const ground = await Ground.findOne(groundFilter);
+  if (!ground) {
+    throw new CustomError(404, "Ground not found.");
+  }
+
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const datePrefix = `${year}-${String(month).padStart(2, "0")}`;
+
+  const bookings = await Booking.find({
+    groundId: ground._id,
+    date: { $regex: `^${datePrefix}` },
+  }).sort({ startTime: 1 });
+
+  const bookingsByDate: Record<string, any[]> = {};
+  for (const b of bookings) {
+    const dStr = b.date;
+    if (!bookingsByDate[dStr]) {
+      bookingsByDate[dStr] = [];
+    }
+    bookingsByDate[dStr]!.push(b);
+  }
+
+  const daysResult = [];
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dayStr = String(d).padStart(2, "0");
+    const dateStr = `${datePrefix}-${dayStr}`;
+    const dateObj = new Date(year, month - 1, d);
+    const dayOfWeek = dateObj.getDay();
+
+    const closure = ground.closures?.find((c) => c.date === dateStr);
+    const dayBookings = bookingsByDate[dateStr] || [];
+    const confirmedBookings = dayBookings.filter((b) => b.status === "BOOKED");
+    const totalRevenue = confirmedBookings.reduce((sum, b) => sum + (b.price || 0), 0);
+
+    const dayEntry: Record<string, any> = {
+      date: dateStr,
+      dayOfWeek,
+      isClosed: !!closure,
+      totalBookings: confirmedBookings.length,
+      totalRevenue,
+      bookings: dayBookings.map((b) => {
+        const item: Record<string, any> = {
+          id: String(b._id),
+          startTime: b.startTime,
+          endTime: b.endTime,
+          status: b.status,
+          customerName: b.customerName,
+          customerPhone: b.customerPhone,
+          price: b.price,
+        };
+        if (b.payment?.status) {
+          item["paymentStatus"] = b.payment.status;
+        }
+        return item;
+      }),
+    };
+    if (closure?.reason) {
+      dayEntry["closureReason"] = closure.reason;
+    }
+
+    daysResult.push(dayEntry);
+  }
+
+  return {
+    month: datePrefix,
+    days: daysResult as any,
+  };
+};
+

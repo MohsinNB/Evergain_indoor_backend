@@ -6,6 +6,9 @@ import {
   getBookingById,
   cancelBookingByAdmin,
   markBookingNoShow,
+  getPublicBookingReceipt,
+  getMyCustomerBookings,
+  getMonthlyCalendarOverview,
 } from "./booking.service";
 import {
   createBookingRequestSchema,
@@ -215,6 +218,91 @@ export const noShowBookingHandler = async (
       success: true,
       message: "Booking marked as NO_SHOW.",
       data: booking,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/v1/bookings/public-receipt/:identifier
+ * Public: Get booking receipt details by ID or Transaction ID.
+ */
+export const getPublicBookingReceiptHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const identifier = String(req.params["identifier"] ?? "").trim();
+    if (!identifier) {
+      return next(new CustomError(400, "Booking ID or Transaction ID is required."));
+    }
+
+    const booking = await getPublicBookingReceipt(identifier);
+
+    res.status(200).json({
+      success: true,
+      message: "Booking receipt fetched successfully.",
+      data: booking,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/v1/bookings/me
+ * Customer: Get current customer's booking history.
+ */
+export const getMyCustomerBookingsHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    if (!req.customer?._id || !req.customer?.phone) {
+      return next(new CustomError(401, "Customer authentication required."));
+    }
+
+    const bookings = await getMyCustomerBookings(
+      String(req.customer._id),
+      req.customer.phone,
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Customer booking history fetched successfully.",
+      data: bookings,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/v1/calendar?month=YYYY-MM
+ * Admin: Get monthly calendar overview of slots and revenue.
+ */
+export const getMonthlyCalendarOverviewHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const month = String(req.query["month"] ?? "").trim();
+    const groundId = req.query["groundId"] ? String(req.query["groundId"]).trim() : undefined;
+
+    if (!month) {
+      return next(new CustomError(400, "Month parameter (YYYY-MM) is required."));
+    }
+
+    const result = await getMonthlyCalendarOverview(month, groundId);
+
+    res.status(200).json({
+      success: true,
+      message: "Monthly calendar fetched successfully.",
+      data: result,
     });
   } catch (error) {
     next(error);
