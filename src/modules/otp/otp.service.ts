@@ -3,6 +3,7 @@ import { SendOTPZodInput, VerifyOTPZodInput } from "./otp.validation";
 import { sendSMS } from "../../helpers/sms";
 import { sendEmail } from "../../helpers/email";
 import CustomError from "../../helpers/CustomError";
+import config from "../../config";
 import crypto from "crypto";
 
 /**
@@ -17,7 +18,7 @@ const generate6DigitOTP = (): string => {
  */
 export const sendOTPService = async (
   data: SendOTPZodInput,
-): Promise<{ message: string; expiresAt: Date }> => {
+): Promise<{ message: string; expiresAt: Date; devOtp?: string }> => {
   const { channel = "sms", phone, email, purpose } = data;
 
   const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
@@ -60,12 +61,15 @@ export const sendOTPService = async (
 
   await OTP.create(otpPayload);
 
+  const isDev = config.env === "development" || process.env.NODE_ENV !== "production";
+
   if (channel === "sms" && phone) {
     const smsMessage = `Your Evergain Avenue OTP code is: ${rawOTP}. Valid for 5 minutes. Do not share this code.`;
     await sendSMS(phone, smsMessage);
     return {
       message: `OTP sent successfully via SMS to ${phone}.`,
       expiresAt,
+      ...(isDev ? { devOtp: rawOTP } : {}),
     };
   } else if (channel === "email" && email) {
     const emailSubject = `Evergain Avenue — Your OTP Verification Code [${rawOTP}]`;
@@ -83,6 +87,7 @@ export const sendOTPService = async (
     return {
       message: `OTP sent successfully via Email to ${email}.`,
       expiresAt,
+      ...(isDev ? { devOtp: rawOTP } : {}),
     };
   } else {
     throw new CustomError(400, "Target phone number or email address is missing for the selected channel.");
@@ -96,6 +101,8 @@ export const verifyOTPService = async (
   data: VerifyOTPZodInput,
 ): Promise<{ success: boolean; message: string }> => {
   const { channel, phone, email, otp, purpose } = data;
+
+  const isDev = config.env === "development" || process.env.NODE_ENV !== "production";
 
   const filter: Record<string, any> = {
     purpose,
@@ -112,6 +119,19 @@ export const verifyOTPService = async (
   }
 
   const otpRecord = await OTP.findOne(filter).select("+otpHash");
+
+  // Universal Dev OTP Bypass for local testing
+  if (isDev && otp === "123456") {
+    if (otpRecord) {
+      otpRecord.isVerified = true;
+      await otpRecord.save();
+      await OTP.findByIdAndDelete(otpRecord._id);
+    }
+    return {
+      success: true,
+      message: "OTP code verified successfully (Dev Mode Bypass).",
+    };
+  }
 
   if (!otpRecord) {
     throw new CustomError(

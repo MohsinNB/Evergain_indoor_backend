@@ -56,6 +56,7 @@ router.use("/", otpRoutes);
 import analyticsRoutes from "../modules/analytics/analytics.route";
 import auditLogRoutes from "../modules/auditLog/auditLog.route";
 router.use("/", analyticsRoutes);
+router.use("/", auditLogRoutes);
 // ── Module 7: Permanent Booking ───────────────────────────────────────────
 import permanentBookingRoutes from "../modules/permanentBooking/permanentBooking.route";
 router.use("/", permanentBookingRoutes);
