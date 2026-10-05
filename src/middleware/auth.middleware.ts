@@ -24,7 +24,12 @@ export const adminAuthGuard = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const token = req.cookies?.adminToken;
+    const authHeader = req.headers.authorization;
+    const token =
+      req.cookies?.adminToken ||
+      (authHeader && authHeader.startsWith("Bearer ")
+        ? authHeader.slice(7).trim()
+        : undefined);
 
     if (!token) {
       throw new CustomError(401, "Not authenticated. Please login.");
@@ -72,7 +77,7 @@ export const requireRole = (...roles: Array<"super_admin" | "admin" | "staff">) 
 
 /**
  * Protects customer routes (registered customers only).
- * Reads JWT from httpOnly cookie: customerToken
+ * Reads JWT from httpOnly cookie: customerToken OR Authorization: Bearer <token>
  */
 export const customerAuthGuard = async (
   req: Request,
@@ -80,7 +85,12 @@ export const customerAuthGuard = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const token = req.cookies?.customerToken;
+    const authHeader = req.headers.authorization;
+    const token =
+      req.cookies?.customerToken ||
+      (authHeader && authHeader.startsWith("Bearer ")
+        ? authHeader.slice(7).trim()
+        : undefined);
 
     if (!token) {
       throw new CustomError(401, "Not authenticated. Please login.");

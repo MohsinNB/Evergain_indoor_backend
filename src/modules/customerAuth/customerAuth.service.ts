@@ -77,6 +77,9 @@ export const registerCustomer = async (
     },
   );
 
+  // Automatically award ৳50 profile completion coupon if eligible
+  await awardProfileCompletionCoupon(String(customer._id));
+
   // Set httpOnly cookie
   res.cookie("customerToken", token, {
     httpOnly: true,
@@ -135,6 +138,9 @@ export const loginCustomer = async (
       expiresIn: config.jwt.customerExpire as any,
     },
   );
+
+  // Automatically award ৳50 profile completion coupon if eligible
+  await awardProfileCompletionCoupon(String(customer._id));
 
   // Set httpOnly cookie
   res.cookie("customerToken", token, {
