@@ -44,7 +44,23 @@ const isWithin48HourWindow = (slotDate: string, slotStartTime: string): boolean 
 /** Get all grounds (onlyActive = true for public, false for admin) */
 export const getAllGrounds = async (onlyActive = false): Promise<IGround[]> => {
   const filter = onlyActive ? { isActive: true } : {};
-  return Ground.find(filter).sort({ createdAt: -1 }).lean() as Promise<IGround[]>;
+  let grounds = await Ground.find(filter).sort({ createdAt: -1 }).lean();
+
+  if (grounds.length === 0) {
+    const created = await Ground.create({
+      name: "Evergain Avenue — Main Pitch",
+      location: "Block C, Bashundhara R/A, Dhaka",
+      openingTime: "06:00",
+      closingTime: "24:00",
+      slotDurationMinutes: 60,
+      pricePerSlot: 1000,
+      isActive: true,
+      closures: [],
+    });
+    grounds = [created.toObject() as any];
+  }
+
+  return grounds as IGround[];
 };
 
 /** Get ground for slot availability computation */
