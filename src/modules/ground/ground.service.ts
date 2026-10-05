@@ -57,10 +57,20 @@ export const getGroundForSlots = async (groundId?: string): Promise<IGround> => 
     return ground as IGround;
   }
 
-  // Fallback: get the first active ground
-  const ground = await Ground.findOne({ isActive: true }).lean();
+  // Fallback: get the first active ground (auto-create default if DB is fresh)
+  let ground = await Ground.findOne({ isActive: true }).lean();
   if (!ground) {
-    throw new CustomError(404, "No active ground found in the system.");
+    const created = await Ground.create({
+      name: "Evergain Avenue — Main Pitch",
+      location: "Block C, Bashundhara R/A, Dhaka",
+      openingTime: "06:00",
+      closingTime: "24:00",
+      slotDurationMinutes: 60,
+      pricePerSlot: 1000,
+      isActive: true,
+      closures: [],
+    });
+    ground = created.toObject() as any;
   }
   return ground as IGround;
 };
