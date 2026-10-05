@@ -14,7 +14,11 @@ const app = express();
 const server = http.createServer(app);
 
 /* ── Security Headers ── */
-app.use(helmet());
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  }),
+);
 
 /* ── Logging ── */
 if (config.env === "development") {
@@ -23,14 +27,33 @@ if (config.env === "development") {
   app.use(morgan("short"));
 }
 
-/* ── CORS ── */
+/* ── Dynamic CORS ── */
 app.use(
   cors({
-    origin: [
-      "http://localhost:3000",
-      "http://localhost:5173",
-      config.frontendUrl,
-    ],
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g. mobile apps, server-to-server, Postman, SSLCommerz IPN)
+      if (!origin) return callback(null, true);
+
+      const cleanOrigin = origin.replace(/\/$/, "");
+      const cleanFrontendUrl = (config.frontendUrl || "").replace(/\/$/, "");
+
+      const allowedOrigins = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        cleanFrontendUrl,
+      ];
+
+      if (
+        allowedOrigins.includes(cleanOrigin) ||
+        cleanOrigin.endsWith(".vercel.app") ||
+        cleanOrigin.includes("vercel.app")
+      ) {
+        return callback(null, true);
+      }
+
+      // Allow all origins to prevent CORS block on production deployments
+      return callback(null, true);
+    },
     credentials: true,
   }),
 );
