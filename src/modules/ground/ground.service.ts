@@ -100,6 +100,15 @@ export const getGroundById = async (id: string): Promise<IGround> => {
   return ground as IGround;
 };
 
+const formatMinutes = (totalMinutes: number): string => {
+  const normalized = totalMinutes % (24 * 60);
+  const hh = Math.floor(normalized / 60)
+    .toString()
+    .padStart(2, "0");
+  const mm = (normalized % 60).toString().padStart(2, "0");
+  return `${hh}:${mm}`;
+};
+
 /**
  * Generates slot array for a given date with computed availability & pricing.
  */
@@ -111,13 +120,19 @@ export const buildSlotViews = (
   const slots: ISlotView[] = [];
   const { openingTime, closingTime, slotDurationMinutes, pricePerSlot } = ground;
 
-  let cursor = openingTime;
+  const startMin = toMinutes(openingTime);
+  let endMin = toMinutes(closingTime);
 
-  while (true) {
-    const slotStart = cursor;
-    const slotEnd = addMinutes(slotStart, slotDurationMinutes);
+  // If closingTime <= openingTime (e.g., 03:00 <= 06:00), closing time is early morning next day (+24h)
+  if (endMin <= startMin) {
+    endMin += 24 * 60;
+  }
 
-    if (toMinutes(slotEnd) > toMinutes(closingTime)) break;
+  let cursorMin = startMin;
+
+  while (cursorMin + slotDurationMinutes <= endMin) {
+    const slotStart = formatMinutes(cursorMin);
+    const slotEnd = formatMinutes(cursorMin + slotDurationMinutes);
 
     const isUnavailable = bookedStartTimes.has(slotStart);
     const within48h = isWithin48HourWindow(date, slotStart);
@@ -133,7 +148,7 @@ export const buildSlotViews = (
       status: isUnavailable ? "unavailable" : "available",
     });
 
-    cursor = slotEnd;
+    cursorMin += slotDurationMinutes;
   }
 
   return slots;

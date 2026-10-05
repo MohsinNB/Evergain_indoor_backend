@@ -52,14 +52,7 @@ export const createGroundSchema = z
       .min(0, "Price must not be negative"),
     isActive: z.boolean().optional().default(true),
     closures: z.array(closureSchema).optional().default([]),
-  })
-  .refine(
-    (data) => data.openingTime < data.closingTime,
-    {
-      message: "Opening time must be before closing time",
-      path: ["openingTime"],
-    },
-  );
+  });
 
 // Update ground settings schema
 export const updateGroundSettingsSchema = z
@@ -77,19 +70,7 @@ export const updateGroundSettingsSchema = z
         z.string().regex(dateRegex, "Each date must be in YYYY-MM-DD format"),
       )
       .optional(),
-  })
-  .refine(
-    (data) => {
-      if (data.openingTime && data.closingTime) {
-        return data.openingTime < data.closingTime;
-      }
-      return true;
-    },
-    {
-      message: "Opening time must be before closing time",
-      path: ["openingTime"],
-    },
-  );
+  });
 
 export type GetSlotsQuery = z.infer<typeof getSlotsQuerySchema>;
 export type CreateGroundInput = z.infer<typeof createGroundSchema>;
