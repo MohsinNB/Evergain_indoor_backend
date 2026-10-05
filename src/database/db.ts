@@ -22,8 +22,10 @@ export const connectDatabase = async (): Promise<void> => {
       chalk.yellow(`Database connected: ${dbInfo.connection.host}`),
     );
 
-    // Auto-seed initial super admins from config/env
+    // Auto-seed initial super admins and default ground if database is empty
     await seedSuperAdminsFromConfig();
+    const { getAllGrounds } = require("../modules/ground/ground.service");
+    await getAllGrounds(false);
 
   } catch (error) {
     console.error(chalk.red("Database connection failed!!"), error);
