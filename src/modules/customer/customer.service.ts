@@ -54,6 +54,9 @@ export const updateCustomerProfile = async (
  * Get active unused discount coupons for customer.
  */
 export const getCustomerCoupons = async (customerId: string): Promise<IDiscountCoupon[]> => {
+  // Check eligibility & award ৳50 Profile Completion Coupon if eligible
+  await awardProfileCompletionCoupon(customerId);
+
   return DiscountCoupon.find({
     customerId,
     isUsed: false,

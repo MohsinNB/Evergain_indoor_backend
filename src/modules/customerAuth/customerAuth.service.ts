@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 import { Response } from "express";
 import Customer from "../customer/customer.model";
 import { ICustomer } from "../customer/customer.interface";
-import { CustomerSignupZodInput, CustomerLoginZodInput } from "../customer/customer.validation";
+import { CustomerSignupZodInput, CustomerLoginZodInput, CustomerResetPasswordZodInput } from "../customer/customer.validation";
 import { verifyOTPService } from "../otp/otp.service";
 import { awardProfileCompletionCoupon } from "../discountCoupon/discountCoupon.service";
 import config from "../../config";
@@ -109,14 +109,19 @@ export const loginCustomer = async (
   data: CustomerLoginZodInput,
   res: Response,
 ): Promise<{ customer: Partial<ICustomer>; token: string }> => {
-  const customer = await Customer.findOne({ phone: data.phone }).select("+passwordHash");
+  const isEmail = data.identifier.includes("@");
+  const query = isEmail
+    ? { email: data.identifier.toLowerCase().trim() }
+    : { phone: data.identifier.trim() };
+
+  const customer = await Customer.findOne(query).select("+passwordHash");
   if (!customer || !customer.isRegistered) {
-    throw new CustomError(401, "Invalid phone number or password.");
+    throw new CustomError(401, "Invalid phone number/email or password.");
   }
 
   const isMatch = await customer.comparePassword(data.password);
   if (!isMatch) {
-    throw new CustomError(401, "Invalid phone number or password.");
+    throw new CustomError(401, "Invalid phone number/email or password.");
   }
 
   // Generate Customer JWT
@@ -165,4 +170,39 @@ export const logoutCustomer = (res: Response): void => {
     secure: config.env === "production",
     sameSite: config.env === "production" ? "none" : "lax",
   });
+};
+
+/**
+ * Reset customer password using OTP verification.
+ */
+export const resetCustomerPassword = async (
+  data: CustomerResetPasswordZodInput,
+): Promise<{ message: string }> => {
+  const identifier = data.identifier.trim();
+  const isEmail = identifier.includes("@");
+
+  const query = isEmail
+    ? { email: identifier.toLowerCase(), isRegistered: true }
+    : { phone: identifier, isRegistered: true };
+
+  const customer = await Customer.findOne(query);
+  if (!customer) {
+    throw new CustomError(404, "No registered account found with this phone number or email address.");
+  }
+
+  // Verify OTP for reset_password
+  await verifyOTPService({
+    channel: data.otpChannel ?? (isEmail ? "email" : "sms"),
+    phone: isEmail ? undefined : customer.phone,
+    email: isEmail ? customer.email : undefined,
+    otp: data.otp,
+    purpose: "reset_password",
+  });
+
+  customer.passwordHash = data.newPassword;
+  await customer.save();
+
+  return {
+    message: "Password updated successfully. Please login with your new password.",
+  };
 };

@@ -3,6 +3,7 @@ import { IBooking, IPaymentInfo } from "./booking.interface";
 import { CreateAdminManualBookingZodInput, CreateBookingRequestZodInput } from "./booking.validation";
 import Ground from "../ground/ground.model";
 import Customer from "../customer/customer.model";
+import DiscountCoupon from "../discountCoupon/discountCoupon.model";
 import CustomError from "../../helpers/CustomError";
 import { Types } from "mongoose";
 import { calculateBookingPrice } from "./pricing.util";
@@ -275,6 +276,52 @@ export const markBookingNoShow = async (
 };
 
 /**
+ * Admin reverts a NO_SHOW or CANCELLED booking back to BOOKED.
+ */
+export const revertBookingToBooked = async (
+  bookingId: string,
+  adminId?: string,
+): Promise<IBooking> => {
+  const booking = await Booking.findById(bookingId);
+  if (!booking) {
+    throw new CustomError(404, "Booking not found.");
+  }
+
+  if (booking.status === "BOOKED") {
+    throw new CustomError(400, "Booking is already active (BOOKED).");
+  }
+
+  const beforeState = { status: booking.status };
+  booking.status = "BOOKED";
+  booking.set("cancelledAt", undefined);
+  booking.set("cancelReason", undefined);
+
+  try {
+    await booking.save();
+  } catch (error: any) {
+    if (error.code === 11000) {
+      throw new CustomError(
+        409,
+        `Cannot restore to BOOKED: another active booking already exists for slot ${booking.startTime} on ${booking.date}.`,
+      );
+    }
+    throw error;
+  }
+
+  // Audit Log
+  await logAuditAction({
+    actorId: adminId,
+    actorRole: "admin",
+    action: "booking.revert_booked",
+    targetId: String(booking._id),
+    beforeState,
+    afterState: { status: "BOOKED" },
+  });
+
+  return booking;
+};
+
+/**
  * Public Guest One-Time Booking Request
  * Creates a PENDING booking with 15-min hold, applies 48-hour early bird discount if eligible,
  * enforces hold-abuse protection (max 1 pending booking per phone), and initializes SSLCommerz session.
@@ -462,18 +509,49 @@ export const createGuestBookingRequest = async (
 /**
  * Public Booking Receipt / Confirmation Lookup by ID or Transaction ID
  */
-export const getPublicBookingReceipt = async (identifier: string): Promise<IBooking> => {
-  let booking = null;
+export const getPublicBookingReceipt = async (identifier: string): Promise<any> => {
+  let bookingDoc = null;
   if (Types.ObjectId.isValid(identifier)) {
-    booking = await Booking.findById(identifier).populate("groundId", "name location");
+    bookingDoc = await Booking.findById(identifier).populate("groundId", "name location");
   }
-  if (!booking) {
-    booking = await Booking.findOne({ "payment.tranId": identifier }).populate("groundId", "name location");
+  if (!bookingDoc) {
+    bookingDoc = await Booking.findOne({ "payment.tranId": identifier }).populate("groundId", "name location");
   }
-  if (!booking) {
+  if (!bookingDoc) {
     throw new CustomError(404, "Booking not found.");
   }
-  return booking;
+
+  const booking = bookingDoc.toObject();
+  const groundObj = booking.groundId as any;
+
+  let showProfileOffer = false;
+  let customer = null;
+
+  if (booking.customerId) {
+    customer = await Customer.findById(booking.customerId);
+  } else if (booking.customerPhone) {
+    customer = await Customer.findOne({ phone: booking.customerPhone });
+  }
+
+  if (customer) {
+    const isRegistered = Boolean(customer.isRegistered);
+    const hasCoupon = Boolean(
+      await DiscountCoupon.exists({
+        customerId: customer._id,
+        type: "profile_completion",
+      }),
+    );
+    showProfileOffer = !isRegistered && !hasCoupon;
+  } else {
+    showProfileOffer = true;
+  }
+
+  return {
+    ...booking,
+    groundName: groundObj?.name || "Evergain Avenue",
+    groundLocation: groundObj?.location || "",
+    showProfileOffer,
+  };
 };
 
 /**
