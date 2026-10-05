@@ -26,7 +26,7 @@ export const customerSignupSchema = z.object({
 });
 
 export const customerLoginSchema = z.object({
-  phone: z.string().regex(phoneRegex, "Phone must be a valid Bangladeshi number"),
+  identifier: z.string().trim().min(1, "Phone number or email address is required"),
   password: z.string().min(1, "Password is required"),
 });
 
@@ -35,6 +35,17 @@ export const updateCustomerProfileSchema = z.object({
   email: z.string().email("Must be a valid email address").optional(),
 });
 
+export const customerResetPasswordSchema = z.object({
+  identifier: z.string().trim().min(1, "Phone number or email address is required"),
+  otp: z
+    .string()
+    .length(6, "OTP must be exactly 6 digits")
+    .regex(/^\d{6}$/, "OTP must contain numbers only"),
+  newPassword: z.string().min(6, "Password must be at least 6 characters"),
+  otpChannel: z.enum(["sms", "email"]).optional().default("sms"),
+});
+
 export type CustomerSignupZodInput = z.infer<typeof customerSignupSchema>;
 export type CustomerLoginZodInput = z.infer<typeof customerLoginSchema>;
 export type UpdateCustomerProfileZodInput = z.infer<typeof updateCustomerProfileSchema>;
+export type CustomerResetPasswordZodInput = z.infer<typeof customerResetPasswordSchema>;

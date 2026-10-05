@@ -6,6 +6,7 @@ import {
   getBookingById,
   cancelBookingByAdmin,
   markBookingNoShow,
+  revertBookingToBooked,
   getPublicBookingReceipt,
   getMyCustomerBookings,
   getMonthlyCalendarOverview,
@@ -217,6 +218,34 @@ export const noShowBookingHandler = async (
     res.status(200).json({
       success: true,
       message: "Booking marked as NO_SHOW.",
+      data: booking,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * PATCH /api/v1/bookings/:id/revert-booked
+ * Admin: Revert NO_SHOW or CANCELLED booking back to BOOKED.
+ */
+export const revertBookingToBookedHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const id = String(req.params["id"] ?? "").trim();
+    if (!id) {
+      return next(new CustomError(400, "Booking ID is required."));
+    }
+
+    const adminId = req.admin?._id ? String(req.admin._id) : undefined;
+    const booking = await revertBookingToBooked(id, adminId);
+
+    res.status(200).json({
+      success: true,
+      message: "Booking reverted to BOOKED (active) successfully.",
       data: booking,
     });
   } catch (error) {

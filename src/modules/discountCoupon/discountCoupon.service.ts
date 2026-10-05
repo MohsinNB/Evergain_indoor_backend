@@ -12,7 +12,7 @@ export const awardProfileCompletionCoupon = async (
   customerId: string,
 ): Promise<{ awarded: boolean; coupon?: IDiscountCoupon }> => {
   const customer = await Customer.findById(customerId);
-  if (!customer || !customer.isRegistered || !customer.email || customer.totalBookings < 1) {
+  if (!customer || !customer.isRegistered || customer.totalBookings < 1) {
     return { awarded: false };
   }
 

@@ -1,4 +1,5 @@
 import OTP from "./otp.model";
+import Customer from "../customer/customer.model";
 import { SendOTPZodInput, VerifyOTPZodInput } from "./otp.validation";
 import { sendSMS } from "../../helpers/sms";
 import { sendEmail } from "../../helpers/email";
@@ -20,6 +21,48 @@ export const sendOTPService = async (
   data: SendOTPZodInput,
 ): Promise<{ message: string; expiresAt: Date; devOtp?: string }> => {
   const { channel = "sms", phone, email, purpose } = data;
+
+  // 1. If purpose is signup, check if account already exists in DB before sending OTP
+  if (purpose === "signup") {
+    if (phone) {
+      const existingPhoneUser = await Customer.findOne({ phone: phone.trim(), isRegistered: true });
+      if (existingPhoneUser) {
+        throw new CustomError(
+          400,
+          "An account with this phone number already exists. Please login or reset your password.",
+        );
+      }
+    }
+    if (email) {
+      const existingEmailUser = await Customer.findOne({ email: email.toLowerCase().trim(), isRegistered: true });
+      if (existingEmailUser) {
+        throw new CustomError(
+          400,
+          "An account with this email address already exists. Please login or reset your password.",
+        );
+      }
+    }
+  }
+
+  // 2. If purpose is reset_password, check if registered account exists
+  if (purpose === "reset_password") {
+    const filter: Record<string, any> = { isRegistered: true };
+    if (channel === "email" && email) {
+      filter["email"] = email.toLowerCase().trim();
+    } else if (phone) {
+      filter["phone"] = phone.trim();
+    } else if (email) {
+      filter["email"] = email.toLowerCase().trim();
+    }
+
+    const existingUser = await Customer.findOne(filter);
+    if (!existingUser) {
+      throw new CustomError(
+        404,
+        "No registered account found with this phone number or email address. Please create an account.",
+      );
+    }
+  }
 
   const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
 

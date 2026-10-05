@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
-import { registerCustomer, loginCustomer, logoutCustomer } from "./customerAuth.service";
-import { customerSignupSchema, customerLoginSchema } from "../customer/customer.validation";
+import { registerCustomer, loginCustomer, logoutCustomer, resetCustomerPassword } from "./customerAuth.service";
+import { customerSignupSchema, customerLoginSchema, customerResetPasswordSchema } from "../customer/customer.validation";
 import Customer from "../customer/customer.model";
 import CustomError from "../../helpers/CustomError";
 
@@ -114,6 +114,35 @@ export const customerMeHandler = async (
         totalBookings: customer.totalBookings,
         createdAt: customer.createdAt,
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/v1/auth/customer/reset-password
+ */
+export const customerResetPasswordHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const parsed = customerResetPasswordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const errors = parsed.error.issues.map((i) => ({
+        field: String(i.path[0] ?? "unknown"),
+        message: i.message,
+      }));
+      return next(new CustomError(400, "Validation failed", errors));
+    }
+
+    const result = await resetCustomerPassword(parsed.data);
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
     });
   } catch (error) {
     next(error);

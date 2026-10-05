@@ -6,6 +6,7 @@ import {
   getBookingByIdHandler,
   cancelBookingHandler,
   noShowBookingHandler,
+  revertBookingToBookedHandler,
   getPublicBookingReceiptHandler,
   getMyCustomerBookingsHandler,
   getMonthlyCalendarOverviewHandler,
@@ -108,6 +109,16 @@ router.patch(
   "/bookings/:id/no-show",
   adminAuthGuard,
   noShowBookingHandler,
+);
+
+/**
+ * PATCH /api/v1/bookings/:id/revert-booked
+ * Admin: Revert NO_SHOW or CANCELLED booking back to BOOKED.
+ */
+router.patch(
+  "/bookings/:id/revert-booked",
+  adminAuthGuard,
+  revertBookingToBookedHandler,
 );
 
 export default router;
