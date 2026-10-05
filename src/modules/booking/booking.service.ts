@@ -561,10 +561,37 @@ export const getMyCustomerBookings = async (
   customerId: string,
   customerPhone: string,
 ): Promise<IBooking[]> => {
+  const cleanPhone = customerPhone.trim();
+  const rawDigits = cleanPhone.replace(/^\+?88/, "");
+  const formatted01 = rawDigits.startsWith("0") ? rawDigits : `0${rawDigits}`;
+
+  const phoneVariants = Array.from(
+    new Set([cleanPhone, rawDigits, formatted01, `+88${formatted01}`, `88${formatted01}`]),
+  );
+
+  // Auto-link any unlinked bookings matching the customer's phone number
+  await Booking.updateMany(
+    {
+      customerPhone: { $in: phoneVariants },
+      $or: [{ customerId: { $exists: false } }, { customerId: null }],
+    },
+    { customerId: new Types.ObjectId(customerId) },
+  );
+
+  // Sync totalBookings count on Customer record
+  const confirmedCount = await Booking.countDocuments({
+    $or: [
+      { customerId: new Types.ObjectId(customerId) },
+      { customerPhone: { $in: phoneVariants } },
+    ],
+    status: "BOOKED",
+  });
+  await Customer.findByIdAndUpdate(customerId, { totalBookings: confirmedCount });
+
   return Booking.find({
     $or: [
       { customerId: new Types.ObjectId(customerId) },
-      { customerPhone },
+      { customerPhone: { $in: phoneVariants } },
     ],
   })
     .populate("groundId", "name location")
