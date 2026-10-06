@@ -25,7 +25,11 @@ const addMinutes = (hhMm: string, minutes: number): string => {
 /**
  * Checks whether slot starts within the 48-hour early-bird discount window.
  */
-const isWithin48HourWindow = (slotDate: string, slotStartTime: string): boolean => {
+const isWithin48HourWindow = (
+  slotDate: string,
+  slotStartTime: string,
+  isNextDay = false,
+): boolean => {
   const nowMs = Date.now();
   const thresholdMs = nowMs + 48 * 60 * 60 * 1000;
 
@@ -37,7 +41,7 @@ const isWithin48HourWindow = (slotDate: string, slotStartTime: string): boolean 
   const hour = timeParts[0] ?? 0;
   const minute = timeParts[1] ?? 0;
 
-  const slotUtcMs = Date.UTC(year, month - 1, day, hour - 6, minute);
+  const slotUtcMs = Date.UTC(year, month - 1, day + (isNextDay ? 1 : 0), hour - 6, minute);
   return slotUtcMs <= thresholdMs;
 };
 
@@ -135,7 +139,8 @@ export const buildSlotViews = (
     const slotEnd = formatMinutes(cursorMin + slotDurationMinutes);
 
     const isUnavailable = bookedStartTimes.has(slotStart);
-    const within48h = isWithin48HourWindow(date, slotStart);
+    // Slots past midnight (e.g. 12 AM - 3 AM) physically occur on the next calendar day
+    const within48h = isWithin48HourWindow(date, slotStart, cursorMin >= 24 * 60);
     const isDiscounted = within48h && !isUnavailable;
     const finalPrice = isDiscounted ? pricePerSlot - EARLY_BIRD_DISCOUNT_AMOUNT : pricePerSlot;
 

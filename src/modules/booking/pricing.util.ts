@@ -7,7 +7,11 @@ export const EARLY_BIRD_DISCOUNT_AMOUNT = 50;
  * Checks whether a slot (date + startTime in Asia/Dhaka wall-clock time)
  * starts within 48 hours from current system time.
  */
-export const isWithin48HourWindow = (slotDate: string, slotStartTime: string): boolean => {
+export const isWithin48HourWindow = (
+  slotDate: string,
+  slotStartTime: string,
+  isNextDay = false,
+): boolean => {
   const nowMs = Date.now();
   const thresholdMs = nowMs + 48 * 60 * 60 * 1000;
 
@@ -21,7 +25,8 @@ export const isWithin48HourWindow = (slotDate: string, slotStartTime: string): b
   const minute = timeParts[1] ?? 0;
 
   // Asia/Dhaka is UTC+6
-  const slotUtcMs = Date.UTC(year, month - 1, day, hour - 6, minute);
+  // isNextDay: post-midnight slots of an overnight schedule belong to the next calendar day
+  const slotUtcMs = Date.UTC(year, month - 1, day + (isNextDay ? 1 : 0), hour - 6, minute);
 
   return slotUtcMs <= thresholdMs;
 };
@@ -35,8 +40,9 @@ export const calculateBookingPrice = (
   slotDate: string,
   slotStartTime: string,
   coupon?: IDiscountCoupon | null,
+  isNextDay = false,
 ): { price: number; appliedDiscount: IAppliedDiscount; appliedCouponId?: string } => {
-  const within48h = isWithin48HourWindow(slotDate, slotStartTime);
+  const within48h = isWithin48HourWindow(slotDate, slotStartTime, isNextDay);
   const earlyBirdDiscount = within48h ? Math.min(EARLY_BIRD_DISCOUNT_AMOUNT, pricePerSlot) : 0;
 
   let couponDiscount = 0;
