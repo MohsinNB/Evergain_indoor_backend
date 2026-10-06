@@ -62,7 +62,10 @@ export const getDailyAnalytics = async (dateParam?: string): Promise<IDailyAnaly
   let totalPossibleSlots = 14; // Default fallback
   if (ground) {
     const openMins = toMins(ground.openingTime);
-    const closeMins = toMins(ground.closingTime);
+    let closeMins = toMins(ground.closingTime);
+    if (closeMins <= openMins) {
+      closeMins += 24 * 60;
+    }
     totalPossibleSlots = Math.floor((closeMins - openMins) / ground.slotDurationMinutes);
   }
 
