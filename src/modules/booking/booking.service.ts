@@ -347,9 +347,19 @@ export const createGuestBookingRequest = async (
   const [openH, openM] = ground.openingTime.split(":").map(Number);
   const [closeH, closeM] = ground.closingTime.split(":").map(Number);
 
-  const slotStartMins = (startH ?? 0) * 60 + (startM ?? 0);
+  let slotStartMins = (startH ?? 0) * 60 + (startM ?? 0);
   const openMins = (openH ?? 0) * 60 + (openM ?? 0);
-  const closeMins = (closeH ?? 0) * 60 + (closeM ?? 0);
+  let closeMins = (closeH ?? 0) * 60 + (closeM ?? 0);
+
+  // If closingTime <= openingTime (e.g., 03:00 <= 06:00), closing time is early morning next day (+24h)
+  if (closeMins <= openMins) {
+    closeMins += 24 * 60;
+  }
+
+  // If schedule is overnight and slot starts post-midnight (e.g., 01:00 AM), offset by +24h
+  if (closeMins > 24 * 60 && slotStartMins < openMins) {
+    slotStartMins += 24 * 60;
+  }
 
   if (
     slotStartMins < openMins ||
