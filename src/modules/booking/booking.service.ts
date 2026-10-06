@@ -433,11 +433,14 @@ export const createGuestBookingRequest = async (
   }
 
   // 7. Compute price and discounts (Single largest discount wins)
+  // Post-midnight slots of an overnight schedule physically fall on the next calendar day
+  const isNextDaySlot = data.startTime < ground.openingTime;
   const { price, appliedDiscount, appliedCouponId } = calculateBookingPrice(
     ground.pricePerSlot,
     data.date,
     data.startTime,
     validCoupon,
+    isNextDaySlot,
   );
 
   const discountToApply: Record<string, any> = { ...appliedDiscount };
