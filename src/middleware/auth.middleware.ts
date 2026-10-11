@@ -115,3 +115,65 @@ export const customerAuthGuard = async (
     next(error);
   }
 };
+
+/**
+ * Allows either Admin or Customer. Populates req.admin or req.customer.
+ */
+export const actorAuthGuard = async (
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const authHeader = req.headers.authorization;
+    const bearerToken =
+      authHeader && authHeader.startsWith("Bearer ")
+        ? authHeader.slice(7).trim()
+        : undefined;
+
+    // Try admin first
+    const adminToken = req.cookies?.adminToken || bearerToken;
+    if (adminToken) {
+      try {
+        const decodedAdmin = jwt.verify(
+          adminToken,
+          config.jwt.adminSecret,
+        ) as AdminTokenPayload;
+        if (decodedAdmin && decodedAdmin.adminId) {
+          req.admin = {
+            _id: decodedAdmin.adminId,
+            phone: decodedAdmin.phone,
+            role: decodedAdmin.role,
+          };
+          return next();
+        }
+      } catch {
+        // Not a valid admin token, try customer next
+      }
+    }
+
+    // Try customer
+    const customerToken = req.cookies?.customerToken || bearerToken;
+    if (customerToken) {
+      try {
+        const decodedCustomer = jwt.verify(
+          customerToken,
+          config.jwt.customerSecret,
+        ) as CustomerTokenPayload;
+        if (decodedCustomer && decodedCustomer.customerId) {
+          req.customer = {
+            _id: decodedCustomer.customerId,
+            phone: decodedCustomer.phone,
+          };
+          return next();
+        }
+      } catch {
+        // Invalid customer token as well
+      }
+    }
+
+    throw new CustomError(401, "Not authenticated. Please login.");
+  } catch (error) {
+    next(error);
+  }
+};

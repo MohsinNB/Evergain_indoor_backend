@@ -487,7 +487,9 @@ export const createGuestBookingRequest = async (
   }
 
   // 10. Initialize SSLCommerz Payment Session
-  const hostUrl = hostHeader
+  const hostUrl = config.backendUrl
+    ? `${config.backendUrl}/api/v1`
+    : hostHeader
     ? `${hostHeader.startsWith("http") ? "" : "http://"}${hostHeader}/api/v1`
     : `http://localhost:${config.port}/api/v1`;
 

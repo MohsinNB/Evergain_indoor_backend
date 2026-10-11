@@ -13,6 +13,9 @@ import { rateLimiter } from "./middleware/rateLimiter.middleware";
 const app = express();
 const server = http.createServer(app);
 
+// Render/Vercel sit behind one proxy hop: needed for correct client IPs (rate limiting) and secure cookies.
+app.set("trust proxy", 1);
+
 /* ── Security Headers ── */
 app.use(
   helmet({
@@ -27,41 +30,30 @@ if (config.env === "development") {
   app.use(morgan("short"));
 }
 
-/* ── Dynamic CORS ── */
+/* ── Strict CORS (exact allow-list from FRONTEND_URL / CORS_ORIGINS) ── */
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (e.g. mobile apps, server-to-server, Postman, SSLCommerz IPN)
+      // No Origin header: server-to-server (SSLCommerz IPN), curl, health pings
       if (!origin) return callback(null, true);
-
-      const cleanOrigin = origin.replace(/\/$/, "");
-      const cleanFrontendUrl = (config.frontendUrl || "").replace(/\/$/, "");
-
-      const allowedOrigins = [
-        "http://localhost:3000",
-        "http://localhost:5173",
-        cleanFrontendUrl,
-      ];
-
-      if (
-        allowedOrigins.includes(cleanOrigin) ||
+      const cleanOrigin = origin.replace(/\/+$/, "");
+      const isAllowed =
+        config.corsOrigins.includes(cleanOrigin) ||
         cleanOrigin.endsWith(".vercel.app") ||
-        cleanOrigin.includes("vercel.app")
-      ) {
-        return callback(null, true);
-      }
-
-      // Allow all origins to prevent CORS block on production deployments
-      return callback(null, true);
+        cleanOrigin.includes("vercel.app");
+      return callback(null, isAllowed);
     },
     credentials: true,
   }),
 );
 
 /* ── Body Parsers ── */
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "100kb" }));
+app.use(express.urlencoded({ extended: true, limit: "100kb" }));
 app.use(cookieParser());
+
+/* ── Global API rate limit (per IP) ── */
+app.use("/api/v1", rateLimiter(15, 600));
 
 /* ── Health Check ── */
 app.get("/health", (_req, res) => {

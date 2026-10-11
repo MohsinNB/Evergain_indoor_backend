@@ -104,7 +104,7 @@ export const sendOTPService = async (
 
   await OTP.create(otpPayload);
 
-  const isDev = config.env === "development" || process.env.NODE_ENV !== "production";
+  const isDev = config.env === "development";
 
   if (channel === "sms" && phone) {
     const smsMessage = `Your Evergain Avenue OTP code is: ${rawOTP}. Valid for 5 minutes. Do not share this code.`;
@@ -145,7 +145,7 @@ export const verifyOTPService = async (
 ): Promise<{ success: boolean; message: string }> => {
   const { channel, phone, email, otp, purpose } = data;
 
-  const isDev = config.env === "development" || process.env.NODE_ENV !== "production";
+  const isDev = config.env === "development";
 
   const filter: Record<string, any> = {
     purpose,

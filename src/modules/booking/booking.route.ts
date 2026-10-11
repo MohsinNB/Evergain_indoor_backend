@@ -24,7 +24,7 @@ const router = Router();
  */
 router.post(
   "/bookings/request",
-  rateLimiter(10, 15 * 60 * 1000), // Max 10 requests per 15 min per IP
+  rateLimiter(15, 10), // Max 10 requests per 15 min per IP
   createGuestBookingRequestHandler,
 );
 

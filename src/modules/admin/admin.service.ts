@@ -17,6 +17,15 @@ export const seedSuperAdminsFromConfig = async (): Promise<void> => {
     return;
   }
 
+  if (!defaultPassword || (config.env === "production" && defaultPassword.length < 10)) {
+    console.warn(
+      chalk.yellow(
+        "[Auto-Seed] Skipped: set SUPER_ADMIN_DEFAULT_PASSWORD to a strong value (10+ chars) to seed super admins.",
+      ),
+    );
+    return;
+  }
+
   for (let i = 0; i < superAdminEmails.length; i++) {
     const email = superAdminEmails[i];
     if (!email) continue;

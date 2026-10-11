@@ -6,7 +6,7 @@ import {
   cancelPermanentBookingHandler,
   updatePermanentBookingDiscountHandler,
 } from "./permanentBooking.controller";
-import { customerAuthGuard, adminAuthGuard } from "../../middleware/auth.middleware";
+import { customerAuthGuard, adminAuthGuard, actorAuthGuard } from "../../middleware/auth.middleware";
 
 const router = Router();
 
@@ -60,6 +60,7 @@ router.patch(
  */
 router.patch(
   "/permanent-bookings/:id/cancel",
+  actorAuthGuard,
   cancelPermanentBookingHandler,
 );
 

@@ -5,6 +5,8 @@ import {
   handleSSLCommerzCancel,
   handleSSLCommerzIPN,
 } from "./payment.service";
+import config from "../../config";
+import CustomError from "../../helpers/CustomError";
 
 /**
  * POST /api/v1/payment/sslcommerz/success
@@ -15,15 +17,15 @@ export const sslCommerzSuccessHandler = async (
   res: Response,
   next: NextFunction,
 ): Promise<void> => {
+  const wantsJson =
+    req.headers.accept?.includes("application/json") || req.query["json"] === "true";
+  const payload = { ...req.query, ...req.body };
+
   try {
-    const payload = { ...req.query, ...req.body };
     const result = await handleSSLCommerzSuccess(payload);
 
     // If client explicitly requests JSON (e.g. Postman test), return JSON object
-    if (
-      req.headers.accept?.includes("application/json") ||
-      req.query["json"] === "true"
-    ) {
+    if (wantsJson) {
       res.status(200).json({
         success: true,
         message: "Payment validated and booking confirmed successfully.",
@@ -35,7 +37,16 @@ export const sslCommerzSuccessHandler = async (
     // Default: Redirect browser to Frontend Success Page
     res.redirect(result.redirectUrl);
   } catch (error) {
-    next(error);
+    if (wantsJson) {
+      next(error);
+      return;
+    }
+    const tranId = String(payload.tran_id || payload.tranId || "");
+    const reason =
+      error instanceof CustomError ? error.message : "Payment verification failed.";
+    res.redirect(
+      `${config.frontendUrl}/booking/failed?tran_id=${encodeURIComponent(tranId)}&reason=${encodeURIComponent(reason)}`,
+    );
   }
 };
 

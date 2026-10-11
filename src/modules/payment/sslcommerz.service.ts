@@ -27,11 +27,26 @@ export interface SSLCommerzValidationResponse {
   val_id?: string;
   amount?: string | number;
   currency?: string;
+  currency_type?: string;
+  currency_amount?: string | number;
+  store_amount?: string | number;
+  risk_level?: string | number;
   card_type?: string;
   bank_tran_id?: string;
   validated_on?: string;
   error?: string;
 }
+
+/**
+ * "Mock mode" = SSLCommerz is not configured (no store id / placeholder store id).
+ * In this mode NO real money moves: the frontend shows a simulator checkout page and
+ * bookings are confirmed without a gateway validation. As soon as a real store id is
+ * configured this returns false and every payment MUST pass server-to-server validation.
+ */
+export const isMockPaymentMode = (): boolean => {
+  const { storeId } = config.sslcommerz;
+  return !storeId || storeId === "your_store_id";
+};
 
 /**
  * Get SSLCommerz Base URL depending on environment config
@@ -50,12 +65,12 @@ export const initSSLCommerzPayment = async (
 ): Promise<SSLCommerzInitResponse> => {
   const { storeId, storePass } = config.sslcommerz;
 
-  // Mock / Sandbox Fallback for local dev when storeId is default placeholder
-  if (!storeId || storeId === "your_store_id") {
+  // Mock / Sandbox Fallback when the store is not configured
+  if (isMockPaymentMode()) {
     console.warn(
       "[SSLCommerz] Store ID is unconfigured/placeholder. Returning simulated mock checkout session.",
     );
-    const mockUrl = `${config.frontendUrl}/mock-checkout?tran_id=${params.tranId}&amount=${params.amount}`;
+    const mockUrl = `${config.frontendUrl}/mock-checkout?tran_id=${encodeURIComponent(params.tranId)}&amount=${params.amount}`;
     return {
       status: "SUCCESS",
       GatewayPageURL: mockUrl,
@@ -93,7 +108,7 @@ export const initSSLCommerzPayment = async (
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
       },
-      timeout: 10000,
+      timeout: 15000,
     });
 
     const data = response.data as SSLCommerzInitResponse;
@@ -105,24 +120,14 @@ export const initSSLCommerzPayment = async (
 };
 
 /**
- * Validate SSLCommerz Payment via Server-to-Server Validation API
+ * Validate SSLCommerz Payment via Server-to-Server Validation API.
+ * There is intentionally NO mock shortcut here: a val_id is only ever trusted after
+ * SSLCommerz itself confirms it.
  */
 export const validateSSLCommerzPayment = async (
   valId: string,
 ): Promise<SSLCommerzValidationResponse> => {
   const { storeId, storePass } = config.sslcommerz;
-
-  if (!storeId || storeId === "your_store_id" || valId.startsWith("MOCK_VAL_")) {
-    console.warn(
-      "[SSLCommerz] Validating with Mock mode due to placeholder store ID or mock valId.",
-    );
-    return {
-      status: "VALID",
-      val_id: valId,
-      card_type: "BKASH-MOCK",
-      validated_on: new Date().toISOString(),
-    };
-  }
 
   const baseUrl = getBaseUrl();
   const validationUrl = `${baseUrl}/validator/api/validationserverAPI.php`;
@@ -135,7 +140,7 @@ export const validateSSLCommerzPayment = async (
         store_passwd: storePass,
         format: "json",
       },
-      timeout: 10000,
+      timeout: 15000,
     });
 
     return response.data as SSLCommerzValidationResponse;
