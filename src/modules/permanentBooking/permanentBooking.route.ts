@@ -5,6 +5,7 @@ import {
   getAdminPermanentBookingsHandler,
   cancelPermanentBookingHandler,
   updatePermanentBookingDiscountHandler,
+  markPermanentPlanPaidHandler,
 } from "./permanentBooking.controller";
 import { customerAuthGuard, adminAuthGuard, actorAuthGuard } from "../../middleware/auth.middleware";
 
@@ -52,6 +53,16 @@ router.patch(
   "/permanent-bookings/:id/discount",
   adminAuthGuard,
   updatePermanentBookingDiscountHandler,
+);
+
+/**
+ * PATCH /api/v1/permanent-bookings/:id/mark-paid
+ * Admin: Mark entire permanent booking plan as paid (Cash / bKash / Bank).
+ */
+router.patch(
+  "/permanent-bookings/:id/mark-paid",
+  adminAuthGuard,
+  markPermanentPlanPaidHandler,
 );
 
 /**

@@ -52,6 +52,7 @@ export const generateWeeklyBookingsForPlan = async (
   );
 
   let generatedCount = 0;
+  let totalAmount = 0;
 
   for (const dateStr of targetDates) {
     // Check if slot is already booked or has an active PENDING hold
@@ -78,6 +79,7 @@ export const generateWeeklyBookingsForPlan = async (
       }
 
       const finalPrice = Math.max(0, ground.pricePerSlot - discountAmount);
+      const isPaid = plan.paymentStatus === "paid";
 
       try {
         await Booking.create({
@@ -98,15 +100,16 @@ export const generateWeeklyBookingsForPlan = async (
           },
           payment: {
             method: "admin_manual",
-            status: "paid",
+            status: isPaid ? "paid" : "pending",
             amount: finalPrice,
-            paidAt: new Date(),
+            ...(isPaid ? { paidAt: new Date() } : {}),
           },
           confirmedAt: new Date(),
         });
 
         customer.totalBookings += 1;
         generatedCount += 1;
+        totalAmount += finalPrice;
       } catch (err: any) {
         // Ignore duplicate key race condition
       }
@@ -114,6 +117,12 @@ export const generateWeeklyBookingsForPlan = async (
   }
 
   await customer.save();
+
+  // Update plan with total matches and calculated commitment amount
+  plan.totalMatches = generatedCount;
+  plan.totalAmount = totalAmount;
+  await plan.save();
+
   return generatedCount;
 };
 

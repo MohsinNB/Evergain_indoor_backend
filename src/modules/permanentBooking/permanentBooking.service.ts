@@ -110,6 +110,7 @@ export const createPermanentBookingPlan = async (
     commitmentMonths,
     discountType: "fixed",
     discountValue: 50, // Default ৳50 permanent plan discount
+    paymentStatus: "unpaid",
     status: "active",
   };
 
@@ -257,6 +258,58 @@ export const updatePermanentBookingDiscount = async (
     targetId: String(plan._id),
     beforeState,
     afterState: { discountType: plan.discountType, discountValue: plan.discountValue },
+  });
+
+  return plan;
+};
+
+/**
+ * Admin marks a full permanent booking plan as paid (Cash / bKash / Bank)
+ */
+export const markPermanentPlanAsPaid = async (
+  planId: string,
+  paymentMethod: "CASH" | "BKASH" | "BANK" = "BKASH",
+  paymentNotes?: string,
+  adminId?: string,
+): Promise<IPermanentBooking> => {
+  const plan = await PermanentBooking.findById(planId);
+  if (!plan) {
+    throw new CustomError(404, "Permanent booking plan not found.");
+  }
+
+  const beforeState = { paymentStatus: plan.paymentStatus };
+  plan.paymentStatus = "paid";
+  plan.paymentMethod = paymentMethod;
+  plan.paymentNotes = paymentNotes;
+  plan.paidAt = new Date();
+  await plan.save();
+
+  // Atomically update all bookings for this plan to paid
+  await Booking.updateMany(
+    { permanentBookingId: plan._id, status: "BOOKED" },
+    {
+      $set: {
+        "payment.status": "paid",
+        "payment.method": "admin_manual",
+        "payment.cardType": paymentMethod,
+        "payment.paidAt": new Date(),
+      },
+    },
+  );
+
+  // Audit Log
+  await logAuditAction({
+    actorId: adminId,
+    actorRole: "admin",
+    action: "permanent_booking.mark_paid",
+    targetId: String(plan._id),
+    beforeState,
+    afterState: {
+      paymentStatus: "paid",
+      paymentMethod,
+      paymentNotes,
+      paidAt: plan.paidAt,
+    },
   });
 
   return plan;

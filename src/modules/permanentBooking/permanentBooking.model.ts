@@ -54,6 +54,32 @@ const permanentBookingSchema = new Schema<IPermanentBooking>(
       enum: ["active", "cancelled", "completed"],
       default: "active",
     },
+    totalAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    totalMatches: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    paymentStatus: {
+      type: String,
+      enum: ["unpaid", "paid"],
+      default: "unpaid",
+    },
+    paymentMethod: {
+      type: String,
+      enum: ["CASH", "BKASH", "BANK"],
+    },
+    paymentNotes: {
+      type: String,
+      trim: true,
+    },
+    paidAt: {
+      type: Date,
+    },
   },
   {
     timestamps: true,

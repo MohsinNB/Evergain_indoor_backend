@@ -20,5 +20,11 @@ export const updatePlanDiscountSchema = z.object({
   discountValue: z.number().min(0, "Discount value cannot be negative"),
 });
 
+export const markPlanPaidSchema = z.object({
+  paymentMethod: z.enum(["CASH", "BKASH", "BANK"]).default("BKASH"),
+  paymentNotes: z.string().optional(),
+});
+
 export type CreatePermanentBookingZodInput = z.infer<typeof createPermanentBookingSchema>;
 export type UpdatePlanDiscountZodInput = z.infer<typeof updatePlanDiscountSchema>;
+export type MarkPlanPaidZodInput = z.infer<typeof markPlanPaidSchema>;

@@ -5,10 +5,12 @@ import {
   getAllPermanentBookingsForAdmin,
   cancelPermanentBookingPlan,
   updatePermanentBookingDiscount,
+  markPermanentPlanAsPaid,
 } from "./permanentBooking.service";
 import {
   createPermanentBookingSchema,
   updatePlanDiscountSchema,
+  markPlanPaidSchema,
 } from "./permanentBooking.validation";
 import CustomError from "../../helpers/CustomError";
 
@@ -179,6 +181,48 @@ export const updatePermanentBookingDiscountHandler = async (
     res.status(200).json({
       success: true,
       message: "Permanent booking discount updated successfully.",
+      data: plan,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * PATCH /api/v1/permanent-bookings/:id/mark-paid
+ * Admin: Mark full permanent booking plan as paid (Cash / bKash / Bank).
+ */
+export const markPermanentPlanPaidHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const id = String(req.params["id"] ?? "").trim();
+    if (!id) {
+      return next(new CustomError(400, "Permanent booking ID is required."));
+    }
+
+    const parsed = markPlanPaidSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const errors = parsed.error.issues.map((i) => ({
+        field: String(i.path[0] ?? "unknown"),
+        message: i.message,
+      }));
+      return next(new CustomError(400, "Validation failed", errors));
+    }
+
+    const { paymentMethod, paymentNotes } = parsed.data;
+    const plan = await markPermanentPlanAsPaid(
+      id,
+      paymentMethod,
+      paymentNotes,
+      req.admin?._id ? String(req.admin._id) : undefined,
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `Permanent booking plan marked as paid via ${paymentMethod}.`,
       data: plan,
     });
   } catch (error) {
