@@ -67,7 +67,8 @@ const config = {
     new Set([
       ...splitList(process.env.FRONTEND_URL),
       ...splitList(process.env.CORS_ORIGINS),
-      ...(isDevelopment ? ["http://localhost:3000", "http://localhost:5173"] : []),
+      "https://evergain-frontend.vercel.app",
+      ...(isDevelopment ? ["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:3000", "http://127.0.0.1:5173"] : []),
     ]),
   ),
 

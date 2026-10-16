@@ -1,5 +1,6 @@
 import axios from "axios";
 import config from "../../config";
+import CustomError from "../../helpers/CustomError";
 
 export interface SSLCommerzInitParams {
   tranId: string;
@@ -38,12 +39,13 @@ export interface SSLCommerzValidationResponse {
 }
 
 /**
- * "Mock mode" = SSLCommerz is not configured (no store id / placeholder store id).
- * In this mode NO real money moves: the frontend shows a simulator checkout page and
- * bookings are confirmed without a gateway validation. As soon as a real store id is
- * configured this returns false and every payment MUST pass server-to-server validation.
+ * "Mock mode" is strictly enabled ONLY in development when SSLCommerz is not configured.
+ * In production mode, mock mode is strictly forbidden to prevent fraudulent bypasses.
  */
 export const isMockPaymentMode = (): boolean => {
+  if (config.env === "production") {
+    return false;
+  }
   const { storeId } = config.sslcommerz;
   return !storeId || storeId === "your_store_id";
 };
@@ -65,10 +67,10 @@ export const initSSLCommerzPayment = async (
 ): Promise<SSLCommerzInitResponse> => {
   const { storeId, storePass } = config.sslcommerz;
 
-  // Mock / Sandbox Fallback when the store is not configured
+  // Mock / Sandbox Fallback ONLY in development when the store is not configured
   if (isMockPaymentMode()) {
     console.warn(
-      "[SSLCommerz] Store ID is unconfigured/placeholder. Returning simulated mock checkout session.",
+      "[SSLCommerz Dev] Store ID is unconfigured/placeholder. Returning simulated mock checkout session.",
     );
     const mockUrl = `${config.frontendUrl}/mock-checkout?tran_id=${encodeURIComponent(params.tranId)}&amount=${params.amount}`;
     return {
@@ -76,6 +78,13 @@ export const initSSLCommerzPayment = async (
       GatewayPageURL: mockUrl,
       sessionkey: `MOCK_SESSION_${Date.now()}`,
     };
+  }
+
+  if (!storeId || !storePass || storeId === "your_store_id") {
+    throw new CustomError(
+      503,
+      "Payment gateway is not configured for online transactions. Please contact administration.",
+    );
   }
 
   const baseUrl = getBaseUrl();

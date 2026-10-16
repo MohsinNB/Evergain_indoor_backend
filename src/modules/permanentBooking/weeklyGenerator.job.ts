@@ -116,11 +116,18 @@ export const generateWeeklyBookingsForPlan = async (
     }
   }
 
-  await customer.save();
+  if (generatedCount > 0) {
+    await customer.save();
+  }
 
-  // Update plan with total matches and calculated commitment amount
-  plan.totalMatches = generatedCount;
-  plan.totalAmount = totalAmount;
+  // Idempotently calculate and update plan with total active matches & commitment amount
+  const allPlanBookings = await Booking.find({
+    permanentBookingId: plan._id,
+    status: { $ne: "CANCELLED" },
+  });
+
+  plan.totalMatches = allPlanBookings.length;
+  plan.totalAmount = allPlanBookings.reduce((sum, b) => sum + (b.price || 0), 0);
   await plan.save();
 
   return generatedCount;

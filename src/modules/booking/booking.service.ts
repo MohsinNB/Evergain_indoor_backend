@@ -11,6 +11,7 @@ import { initSSLCommerzPayment } from "../payment/sslcommerz.service";
 import { validateCustomerCoupon } from "../discountCoupon/discountCoupon.service";
 import { logAuditAction } from "../auditLog/auditLog.service";
 import config from "../../config";
+import crypto from "crypto";
 
 export interface CreateGuestBookingRequestOutput {
   booking: IBooking;
@@ -451,7 +452,7 @@ export const createGuestBookingRequest = async (
   // 8. Prepare slot metadata
   const endTime = calculateEndTime(data.startTime, ground.slotDurationMinutes);
   const holdExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15-min hold
-  const tranId = `EAG_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
+  const tranId = `EAG_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
 
   // 9. Save PENDING booking
   let booking: IBooking;
@@ -526,12 +527,16 @@ export const createGuestBookingRequest = async (
  */
 export const getPublicBookingReceipt = async (identifier: string): Promise<any> => {
   let bookingDoc = null;
-  if (Types.ObjectId.isValid(identifier)) {
+  let isLookupByTranId = false;
+
+  // 1. Look up by tranId first (unique token given to the customer during payment)
+  bookingDoc = await Booking.findOne({ "payment.tranId": identifier }).populate("groundId", "name location");
+  if (bookingDoc) {
+    isLookupByTranId = true;
+  } else if (Types.ObjectId.isValid(identifier)) {
     bookingDoc = await Booking.findById(identifier).populate("groundId", "name location");
   }
-  if (!bookingDoc) {
-    bookingDoc = await Booking.findOne({ "payment.tranId": identifier }).populate("groundId", "name location");
-  }
+
   if (!bookingDoc) {
     throw new CustomError(404, "Booking not found.");
   }
@@ -561,8 +566,32 @@ export const getPublicBookingReceipt = async (identifier: string): Promise<any> 
     showProfileOffer = true;
   }
 
+  // PII Protection: If queried by raw database ID instead of the secure payment tranId,
+  // mask sensitive customer details against unauthorized scanning.
+  let displayPhone = String(booking.customerPhone || "");
+  let displayName = String(booking.customerName || "");
+
+  if (!isLookupByTranId && displayPhone.length >= 8) {
+    displayPhone = `${displayPhone.slice(0, 3)}****${displayPhone.slice(-4)}`;
+    const nameParts = displayName.trim().split(" ");
+    displayName = nameParts.length > 1 ? `${nameParts[0]} ***` : `${displayName.slice(0, 3)}***`;
+  }
+
   return {
-    ...booking,
+    _id: booking._id,
+    bookingType: booking.bookingType,
+    date: booking.date,
+    startTime: booking.startTime,
+    endTime: booking.endTime,
+    customerName: displayName,
+    customerPhone: displayPhone,
+    price: booking.price,
+    status: booking.status,
+    payment: {
+      status: booking.payment?.status,
+      tranId: booking.payment?.tranId,
+      paidAt: booking.payment?.paidAt,
+    },
     groundName: groundObj?.name || "Evergain Avenue",
     groundLocation: groundObj?.location || "",
     showProfileOffer,

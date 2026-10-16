@@ -35,13 +35,14 @@ const mediaFileFilter: multer.Options["fileFilter"] = (_req, file, cb) => {
 };
 
 /**
- * Multer middleware supporting multiple media file uploads (up to 10 files at once, max 50MB per file)
+ * Multer middleware supporting multiple media file uploads.
+ * Tuned for stability on KVM 1 VPS (max 20MB per file, up to 5 files per batch).
  */
 export const uploadMultipleMedia = multer({
   storage,
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB limit per file (to support videos & high-res images)
-    files: 10,                  // Max 10 files per request batch
+    fileSize: 20 * 1024 * 1024, // 20MB limit per file
+    files: 5,                   // Max 5 files per request batch
   },
   fileFilter: mediaFileFilter,
 }).any(); // Accepts files from field names: 'files', 'image', 'images', 'media', etc.

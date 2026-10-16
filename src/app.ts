@@ -37,10 +37,7 @@ app.use(
       // No Origin header: server-to-server (SSLCommerz IPN), curl, health pings
       if (!origin) return callback(null, true);
       const cleanOrigin = origin.replace(/\/+$/, "");
-      const isAllowed =
-        config.corsOrigins.includes(cleanOrigin) ||
-        cleanOrigin.endsWith(".vercel.app") ||
-        cleanOrigin.includes("vercel.app");
+      const isAllowed = config.corsOrigins.includes(cleanOrigin);
       return callback(null, isAllowed);
     },
     credentials: true,
